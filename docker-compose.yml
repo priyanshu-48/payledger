@@ -60,6 +60,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/payments
       DB_PASSWORD: ${PAYMENTS_DB_PASSWORD}
       KAFKA_BOOTSTRAP: kafka:9092
+      # flaky bank knobs (ADR 0011); set in .env to demo failures, e.g. MOCK_BANK_TIMEOUT_RATE=0.5
+      MOCK_BANK_DECLINE_RATE: ${MOCK_BANK_DECLINE_RATE:-0.05}
+      MOCK_BANK_TIMEOUT_RATE: ${MOCK_BANK_TIMEOUT_RATE:-0.03}
+      MOCK_BANK_LOST_RESPONSE_RATE: ${MOCK_BANK_LOST_RESPONSE_RATE:-0.01}
+      STATUS_CHECK_GRACE: ${STATUS_CHECK_GRACE:-PT15S}
+      STATUS_CHECK_INTERVAL: ${STATUS_CHECK_INTERVAL:-PT30S}
     depends_on: {postgres: {condition: service_healthy}}
     ports: ["8081:8081"]
     healthcheck:

@@ -7,6 +7,26 @@ spring:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+payledger:
+  bank:
+    base-url: ${BANK_URL:http://localhost:8081/mock-bank}
+    timeout: ${BANK_TIMEOUT:PT3S}
+  mock-bank:
+    enabled: ${MOCK_BANK_ENABLED:true}
+    latency-min-ms: ${MOCK_BANK_LATENCY_MIN_MS:50}
+    latency-max-ms: ${MOCK_BANK_LATENCY_MAX_MS:2000}
+    decline-rate: ${MOCK_BANK_DECLINE_RATE:0.05}
+    timeout-rate: ${MOCK_BANK_TIMEOUT_RATE:0.03}
+    lost-response-rate: ${MOCK_BANK_LOST_RESPONSE_RATE:0.01}
+    stall: ${MOCK_BANK_STALL:PT5S}
+    seed: ${MOCK_BANK_SEED:0}
+  status-check:
+    grace: ${STATUS_CHECK_GRACE:PT15S}
+    interval: ${STATUS_CHECK_INTERVAL:PT30S}
 management:
   endpoints:
     web:
