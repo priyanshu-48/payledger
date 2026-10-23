@@ -27,6 +27,13 @@ public final class LedgerExceptions {
         }
     }
 
+    /** Optimistic strategy gave up after repeated write conflicts; nothing was written, the client may retry. */
+    public static class TransferContentionException extends RuntimeException {
+        public TransferContentionException(int attempts, Throwable cause) {
+            super("transfer abandoned after " + attempts + " conflicting attempts; retry later", cause);
+        }
+    }
+
     /** The same Idempotency-Key was already used for a different transfer. */
     public static class IdempotencyConflictException extends RuntimeException {
         public IdempotencyConflictException(String key) {

@@ -44,6 +44,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/ledger
       DB_PASSWORD: ${LEDGER_DB_PASSWORD}
       KAFKA_BOOTSTRAP: kafka:9092
+      LEDGER_LOCKING_STRATEGY: ${LEDGER_LOCKING_STRATEGY:-PESSIMISTIC}
     depends_on: {postgres: {condition: service_healthy}}
     ports: ["8082:8082"]
     healthcheck: &hc

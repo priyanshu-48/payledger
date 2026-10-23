@@ -6,6 +6,7 @@ import com.payledger.ledger.service.LedgerExceptions.AccountNotActiveException;
 import com.payledger.ledger.service.LedgerExceptions.AccountNotFoundException;
 import com.payledger.ledger.service.LedgerExceptions.IdempotencyConflictException;
 import com.payledger.ledger.service.LedgerExceptions.InvalidTransferException;
+import com.payledger.ledger.service.LedgerExceptions.TransferContentionException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -36,7 +37,7 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
     }
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ExceptionHandler({DataIntegrityViolationException.class, TransferContentionException.class})
     ProblemDetail conflict(Exception e) {
         return problem(HttpStatus.CONFLICT, "request conflicts with current ledger state; retry");
     }

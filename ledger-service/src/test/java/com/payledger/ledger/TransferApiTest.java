@@ -172,9 +172,32 @@ class TransferApiTest extends ApiTestSupport {
         }
         List<ResponseEntity<Map>> results = runAll(calls);
 
-        assertThat(results).allSatisfy(r -> assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED));
+        // calls alternate alice->bob, bob->alice; a transfer either happened (201) or, only for the
+        // optimistic strategy under heavy contention, was abandoned with nothing written (409)
+        int aliceToBob = 0;
+        int bobToAlice = 0;
+        for (int i = 0; i < results.size(); i++) {
+            HttpStatus status = (HttpStatus) results.get(i).getStatusCode();
+            if (status == HttpStatus.CREATED) {
+                if (i % 2 == 0) {
+                    aliceToBob++;
+                } else {
+                    bobToAlice++;
+                }
+            } else {
+                assertThat(mayGiveUpUnderContention()).as("unexpected status %s", status).isTrue();
+                assertThat(status).isEqualTo(HttpStatus.CONFLICT);
+            }
+        }
+        BigDecimal net = new BigDecimal(5 * (bobToAlice - aliceToBob));
         assertThat(balance(alice).add(balance(bob))).isEqualByComparingTo(new BigDecimal("2000.00"));
-        assertThat(balance(alice)).isEqualByComparingTo("1000.00");
+        assertThat(balance(alice)).isEqualByComparingTo(new BigDecimal("1000.00").add(net));
+        assertThat(balance(bob)).isEqualByComparingTo(new BigDecimal("1000.00").subtract(net));
+    }
+
+    /** The pessimistic strategy queues on row locks and never abandons a transfer. */
+    boolean mayGiveUpUnderContention() {
+        return false;
     }
 
     private List<ResponseEntity<Map>> runInParallel(int n, Callable<ResponseEntity<Map>> call) throws Exception {

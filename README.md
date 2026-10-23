@@ -14,3 +14,6 @@ Health: `:8081` payment, `:8082` ledger, `:8083` notification (`/actuator/health
 ```bash
 ./mvnw verify          # needs Docker running (Testcontainers)
 ```
+
+## Locking strategy
+`LEDGER_LOCKING_STRATEGY=PESSIMISTIC` (default) or `OPTIMISTIC` selects how `POST /transfers` serialises concurrent updates to the same account. Trade-offs and measurements: `docs/decisions/0009-pessimistic-vs-optimistic.md`, `docs/results.md`.

@@ -9,8 +9,13 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     open-in-view: false
+    properties:
+      hibernate:
+        order_updates: true   # flush row updates in primary-key order: no DB deadlocks between opposite transfers
     hibernate:
       ddl-auto: validate
+ledger:
+  locking-strategy: ${LEDGER_LOCKING_STRATEGY:PESSIMISTIC}   # PESSIMISTIC | OPTIMISTIC (ADR 0009)
 management:
   endpoints:
     web:
