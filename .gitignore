@@ -12,3 +12,4 @@ docs/journal.md
 graphify-out/
 .claude/
 .gitattributes
+.jqwik-database
