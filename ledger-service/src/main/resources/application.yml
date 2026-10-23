@@ -14,7 +14,32 @@ spring:
         order_updates: true   # flush row updates in primary-key order: no DB deadlocks between opposite transfers
     hibernate:
       ddl-auto: validate
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: ledger-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 15000
+    listener:
+      ack-mode: record
 ledger:
+  consumer:
+    enabled: ${LEDGER_CONSUMER_ENABLED:true}
+    concurrency: 3
+    retry:
+      initial: ${LEDGER_CONSUMER_RETRY_INITIAL:PT0.5S}
+      max-retries: 3
   locking-strategy: ${LEDGER_LOCKING_STRATEGY:PESSIMISTIC}   # PESSIMISTIC | OPTIMISTIC (ADR 0009)
 management:
   endpoints:

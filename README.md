@@ -25,3 +25,12 @@ curl -X POST localhost:8081/payments -H 'Content-Type: application/json' \
   -d '{"merchantId":"m1","payerAccountId":"00000000-0000-0000-0000-000000000042","amount":500.00,"currency":"INR"}'
 ```
 Then `POST /payments/{id}/capture`, `POST /payments/{id}/refund`, `GET /payments/{id}/events`. The stand-in bank lives at `/mock-bank` and fails on purpose (declines, timeouts, lost responses; see `MOCK_BANK_*` in `docker-compose.yml`). A 202 means the bank's answer is unknown; the status-check job resolves it.
+
+## Events: outbox, Kafka, ledger consumer
+Every payment state change writes an outbox row in the same database transaction; a poller publishes the rows to the `payments.events` topic (at least once). The ledger consumes them idempotently (`processed_events`), posts `PAYMENT_CAPTURE` / `REFUND` journal entries, and sends events it cannot apply to `payments.events.DLT`. After fixing the cause (for example creating the missing merchant account), `POST localhost:8082/admin/dlt/replay` re-queues them. Design: `docs/decisions/0013-transactional-outbox.md`, `0014-idempotent-ledger-consumer.md`.
+
+Prove it yourself (kills the ledger mid-stream and checks 0 lost, 0 duplicated; uses its own compose project):
+```bash
+ops/chaos/kill-ledger.sh 300
+```
+Ledger payments need a MERCHANT account whose `ownerId` equals the payment's `merchantId`.

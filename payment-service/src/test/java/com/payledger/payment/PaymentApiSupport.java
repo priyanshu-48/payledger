@@ -39,7 +39,7 @@ abstract class PaymentApiSupport extends AbstractPostgresTest {
 
     @BeforeEach
     void cleanPayments() {
-        jdbc.execute("TRUNCATE payment_events, payments CASCADE");
+        jdbc.execute("TRUNCATE payment_events, payments, outbox CASCADE");
     }
 
     ResponseEntity<Map> create(String clientId, String key, UUID payer, String merchant, String amount, String currency) {

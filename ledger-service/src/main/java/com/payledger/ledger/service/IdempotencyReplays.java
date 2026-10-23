@@ -1,7 +1,6 @@
 package com.payledger.ledger.service;
 
 import com.payledger.common.Direction;
-import com.payledger.ledger.domain.EntryType;
 import com.payledger.ledger.domain.JournalEntryRepository;
 import com.payledger.ledger.domain.Posting;
 import com.payledger.ledger.domain.PostingRepository;
@@ -28,7 +27,7 @@ class IdempotencyReplays {
             List<Posting> legs = postings.findByEntryId(entry.getId());
             Posting debit = legs.stream().filter(p -> p.getDirection() == Direction.DEBIT).findFirst().orElse(null);
             Posting credit = legs.stream().filter(p -> p.getDirection() == Direction.CREDIT).findFirst().orElse(null);
-            boolean same = entry.getType() == EntryType.TRANSFER
+            boolean same = entry.getType() == cmd.type()
                     && legs.size() == 2 && debit != null && credit != null
                     && debit.getAccountId().equals(cmd.from())
                     && credit.getAccountId().equals(cmd.to())

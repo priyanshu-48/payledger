@@ -2,7 +2,6 @@ package com.payledger.ledger.service;
 
 import com.payledger.common.Direction;
 import com.payledger.ledger.domain.AccountBalance;
-import com.payledger.ledger.domain.EntryType;
 import com.payledger.ledger.domain.JournalEntry;
 import com.payledger.ledger.domain.JournalEntryRepository;
 import com.payledger.ledger.domain.Posting;
@@ -24,7 +23,7 @@ class TransferRecorder {
 
     TransferResult record(TransferCommand cmd, AccountBalance fromBalance, AccountBalance toBalance) {
         // Parent row first: postings reference it by foreign key.
-        JournalEntry entry = entries.save(new JournalEntry(UUID.randomUUID(), cmd.idempotencyKey(), EntryType.TRANSFER));
+        JournalEntry entry = entries.save(new JournalEntry(UUID.randomUUID(), cmd.idempotencyKey(), cmd.type()));
         long minor = cmd.amount().minor();
         String currency = cmd.amount().currency();
         postings.save(new Posting(entry.getId(), cmd.from(), Direction.DEBIT, minor, currency));

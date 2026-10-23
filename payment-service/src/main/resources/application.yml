@@ -11,6 +11,17 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 15000
 payledger:
   bank:
     base-url: ${BANK_URL:http://localhost:8081/mock-bank}
@@ -24,6 +35,12 @@ payledger:
     lost-response-rate: ${MOCK_BANK_LOST_RESPONSE_RATE:0.01}
     stall: ${MOCK_BANK_STALL:PT5S}
     seed: ${MOCK_BANK_SEED:0}
+  outbox:
+    enabled: ${OUTBOX_ENABLED:true}
+    interval: ${OUTBOX_INTERVAL:PT0.2S}
+    batch-size: 100
+    lease: ${OUTBOX_LEASE:PT10S}
+    send-timeout: PT10S
   status-check:
     grace: ${STATUS_CHECK_GRACE:PT15S}
     interval: ${STATUS_CHECK_INTERVAL:PT30S}

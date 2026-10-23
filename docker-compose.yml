@@ -45,7 +45,7 @@ services:
       DB_PASSWORD: ${LEDGER_DB_PASSWORD}
       KAFKA_BOOTSTRAP: kafka:9092
       LEDGER_LOCKING_STRATEGY: ${LEDGER_LOCKING_STRATEGY:-PESSIMISTIC}
-    depends_on: {postgres: {condition: service_healthy}}
+    depends_on: {postgres: {condition: service_healthy}, kafka: {condition: service_healthy}}
     ports: ["8082:8082"]
     healthcheck: &hc
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP"]
@@ -61,12 +61,14 @@ services:
       DB_PASSWORD: ${PAYMENTS_DB_PASSWORD}
       KAFKA_BOOTSTRAP: kafka:9092
       # flaky bank knobs (ADR 0011); set in .env to demo failures, e.g. MOCK_BANK_TIMEOUT_RATE=0.5
+      MOCK_BANK_LATENCY_MIN_MS: ${MOCK_BANK_LATENCY_MIN_MS:-50}
+      MOCK_BANK_LATENCY_MAX_MS: ${MOCK_BANK_LATENCY_MAX_MS:-2000}
       MOCK_BANK_DECLINE_RATE: ${MOCK_BANK_DECLINE_RATE:-0.05}
       MOCK_BANK_TIMEOUT_RATE: ${MOCK_BANK_TIMEOUT_RATE:-0.03}
       MOCK_BANK_LOST_RESPONSE_RATE: ${MOCK_BANK_LOST_RESPONSE_RATE:-0.01}
       STATUS_CHECK_GRACE: ${STATUS_CHECK_GRACE:-PT15S}
       STATUS_CHECK_INTERVAL: ${STATUS_CHECK_INTERVAL:-PT30S}
-    depends_on: {postgres: {condition: service_healthy}}
+    depends_on: {postgres: {condition: service_healthy}, kafka: {condition: service_healthy}}
     ports: ["8081:8081"]
     healthcheck:
       <<: *hc

@@ -27,3 +27,21 @@ Reproduce: `./mvnw -pl common,ledger-service verify -Dtest=ConcurrencyHarnessTes
 | Concurrent transfers, threads, balance drift | 27,000 per strategy (3 runs each of both scenarios), 64 threads, 0 drift |
 | Pessimistic vs optimistic throughput (hot account) | 75 vs 32 transfers/s (and 32% of optimistic transfers abandoned) |
 | jqwik generated scenarios, invariant violations | 10,000 / 0 |
+
+## M4: kill the ledger consumer with events in flight (`ops/chaos/kill-ledger.sh 300`)
+
+Real containers (Postgres, Kafka, payment-service, ledger-service) in their own compose project. 300 payments are created and captured 12 at a time (3 events each = 900 events); `docker kill` stops ledger-service after 429 events were processed (471 still to go, 1 outbox row not yet published); payments keep arriving while the ledger is down; the ledger is restarted and left to drain.
+
+| Check | Result |
+|---|---|
+| Payments captured (payment DB) | 300 |
+| `PAYMENT_CAPTURE` journal entries / distinct external refs | 300 / 300 |
+| Lost / duplicated postings | **0 / 0** |
+| Postings on capture entries | 600 (expected 600) |
+| Events in outbox / processed by the ledger | 900 / 900 |
+| Merchant balance / sum of all balances | 300,000 minor units (expected) / 0 |
+
+JVM-level companion (`ConsumerRecoveryTest`): 300 events, consumer stopped after 122 and restarted, then group offsets rewound to before the first event and all 300 re-read: still 300 entries, 600 postings, 300 `processed_events`.
+
+SPEC section 11 row: events in flight when the consumer was killed -> lost / duplicated = 471 -> 0 / 0.
+
