@@ -1,0 +1,100 @@
+name: payledger
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env}
+      LEDGER_DB_PASSWORD: ${LEDGER_DB_PASSWORD:?}
+      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:?}
+    volumes:
+      - ./ops/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - pgdata:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.9.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    ports: ["29092:29092"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      retries: 10
+      start_period: 20s
+
+  ledger-service:
+    build: {context: ., args: {MODULE: ledger-service}}
+    environment: &db-env
+      DB_USER: ledger
+      DB_URL: jdbc:postgresql://postgres:5432/ledger
+      DB_PASSWORD: ${LEDGER_DB_PASSWORD}
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on: {postgres: {condition: service_healthy}}
+    ports: ["8082:8082"]
+    healthcheck: &hc
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+
+  payment-service:
+    build: {context: ., args: {MODULE: payment-service}}
+    environment:
+      DB_USER: payments
+      DB_URL: jdbc:postgresql://postgres:5432/payments
+      DB_PASSWORD: ${PAYMENTS_DB_PASSWORD}
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on: {postgres: {condition: service_healthy}}
+    ports: ["8081:8081"]
+    healthcheck:
+      <<: *hc
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP"]
+
+  notification-service:
+    build: {context: ., args: {MODULE: notification-service}}
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on: {kafka: {condition: service_healthy}}
+    ports: ["8083:8083"]
+    healthcheck:
+      <<: *hc
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes: ["./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?}
+    volumes: ["./ops/grafana/provisioning:/etc/grafana/provisioning:ro"]
+    ports: ["3000:3000"]
+    depends_on: {prometheus: {condition: service_healthy}}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q ok"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  pgdata:
