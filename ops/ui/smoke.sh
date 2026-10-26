@@ -16,6 +16,9 @@ export AUTH_LOGIN_RATE_PER_MINUTE=100000 TRANSFER_RATE_PER_MINUTE=100000 PAYMENT
 export MOCK_BANK_LATENCY_MIN_MS=2 MOCK_BANK_LATENCY_MAX_MS=20
 export MOCK_BANK_DECLINE_RATE=0 MOCK_BANK_TIMEOUT_RATE=0 MOCK_BANK_LOST_RESPONSE_RATE=0
 P="docker compose -p payledger-ui"
+# Where the published ports are: localhost normally, the Docker host when run inside the Jenkins container.
+HOST=${STACK_HOST:-localhost}
+export UI_URL="http://$HOST:8085"
 
 cleanup() { [ "${KEEP:-0}" = 1 ] || $P down -v >/dev/null 2>&1 || true; }
 trap cleanup EXIT
@@ -25,8 +28,8 @@ $P down -v >/dev/null 2>&1 || true
 $P up -d --build postgres kafka auth-service payment-service ledger-service admin-ui >/dev/null
 for i in $(seq 1 150); do
   ok=1
-  for port in 8081 8082 8084; do curl -sf http://localhost:$port/actuator/health >/dev/null || ok=0; done
-  curl -sf http://localhost:8085/ >/dev/null || ok=0
+  for port in 8081 8082 8084; do curl -sf http://$HOST:$port/actuator/health >/dev/null || ok=0; done
+  curl -sf "$UI_URL/" >/dev/null || ok=0
   [ $ok = 1 ] && break
   sleep 2
 done

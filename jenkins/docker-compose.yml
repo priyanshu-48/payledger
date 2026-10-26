@@ -1,0 +1,26 @@
+# Jenkins for PayLedger (ADR 0022):  docker compose -f jenkins/docker-compose.yml --env-file .env up -d --build
+# UI on http://localhost:8090 (sign in as "admin" with JENKINS_ADMIN_PASSWORD from .env; anyone may look, only admin may change).
+name: payledger-jenkins
+services:
+  jenkins:
+    build: .
+    user: root
+    environment:
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?set JENKINS_ADMIN_PASSWORD in .env}
+      # Testcontainers starts siblings on the host's Docker; their ports are on the host, not on this container.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      STACK_HOST: host.docker.internal
+      # which repository and branch the job builds (defaults: GitHub, main)
+      PAYLEDGER_REPO: ${PAYLEDGER_REPO:-https://github.com/priyanshu-48/payledger.git}
+      PAYLEDGER_BRANCH: ${PAYLEDGER_BRANCH:-main}
+      # Workspaces live in the shared folder below, under the same path inside and outside (ADR 0022).
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false -Djenkins.model.Jenkins.workspacesDir=/c/jenkins-work/$${ITEM_FULL_NAME}"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Host folder shared under the same path Docker Desktop uses for it, see JAVA_OPTS above.
+      - C:/jenkins-work:/c/jenkins-work
+    ports: ["127.0.0.1:8090:8080"]
+
+volumes:
+  jenkins_home:

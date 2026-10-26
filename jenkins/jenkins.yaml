@@ -1,0 +1,43 @@
+# Jenkins configuration as code (ADR 0022): nothing is clicked together by hand.
+jenkins:
+  systemMessage: "PayLedger CI. Configured from jenkins/jenkins.yaml in the repository."
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    globalMatrix:
+      entries:
+        - user:
+            name: "admin"
+            permissions:
+              - "Overall/Administer"
+        - user:
+            name: "anonymous"
+            permissions:
+              - "Overall/Read"
+              - "Job/Read"
+unclassified:
+  location:
+    url: "http://localhost:8090/"
+jobs:
+  - script: >
+      pipelineJob('payledger') {
+        description('Build, test and smoke-test PayLedger from the Jenkinsfile on main')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('${PAYLEDGER_REPO:-https://github.com/priyanshu-48/payledger.git}') }
+                branches('*/${PAYLEDGER_BRANCH:-main}')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(false)
+          }
+        }
+        triggers { scm('H/5 * * * *') }
+      }
