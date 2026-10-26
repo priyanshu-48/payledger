@@ -34,12 +34,13 @@ public class BankClient {
     private final RestClient rest;
     private final Environment environment;
 
-    public BankClient(Environment environment, @Value("${payledger.bank.timeout}") Duration timeout) {
+    public BankClient(Environment environment, @Value("${payledger.bank.timeout}") Duration timeout,
+                      @Value("${payledger.bank.api-key:}") String apiKey) {
         this.environment = environment;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(timeout);
         factory.setReadTimeout(timeout);
-        this.rest = RestClient.builder().requestFactory(factory).build();
+        this.rest = RestClient.builder().requestFactory(factory).defaultHeader(MockBankKeyFilter.HEADER, apiKey).build();
     }
 
     public Outcome authorize(UUID reference, long amountMinor, String currency) {

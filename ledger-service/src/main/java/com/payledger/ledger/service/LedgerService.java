@@ -5,6 +5,7 @@ import com.payledger.ledger.domain.Account;
 import com.payledger.ledger.domain.AccountBalance;
 import com.payledger.ledger.domain.AccountBalanceRepository;
 import com.payledger.ledger.domain.AccountRepository;
+import com.payledger.ledger.domain.AccountStatus;
 import com.payledger.ledger.domain.AccountType;
 import com.payledger.ledger.service.LedgerExceptions.AccountNotFoundException;
 import java.util.Optional;
@@ -79,6 +80,18 @@ public class LedgerService {
         TransferRules.checkAccounts(cmd, fromAccount, toAccount, fromBalance);
 
         return recorder.record(cmd, fromAccount, toAccount, fromBalance, toBalance);
+    }
+
+    /**
+     * Freezes or reactivates an account. The balance row is locked first, the same lock transfers take, so a
+     * freeze waits for in-flight transfers on this account and later transfers see the new status.
+     */
+    @Transactional
+    public Account setStatus(UUID accountId, AccountStatus status) {
+        lock(accountId);
+        Account account = accounts.findById(accountId).orElseThrow(() -> new AccountNotFoundException(accountId));
+        account.changeStatus(status);
+        return account;
     }
 
     /** Previous result for this key, if any; throws if the key was used for a different transfer. */

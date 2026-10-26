@@ -1,6 +1,8 @@
 package com.payledger.payment;
 
 import com.payledger.payment.bank.MockBank;
+import com.payledger.security.testing.TestJwtConfiguration;
+import com.payledger.security.testing.TestTokens;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -30,7 +33,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
         "payledger.mock-bank.stall=PT1S",
         "payledger.mock-bank.seed=7",
         "payledger.status-check.grace=PT0S",
-        "payledger.status-check.interval=PT1H"})
+        "payledger.status-check.interval=PT1H",
+        "payledger.bank.api-key=test-bank-key",
+        "payledger.ratelimit.payments-per-minute=100000"})
+@Import(TestJwtConfiguration.class)
 abstract class PaymentApiSupport extends AbstractPostgresTest {
 
     @Autowired TestRestTemplate http;
@@ -39,25 +45,27 @@ abstract class PaymentApiSupport extends AbstractPostgresTest {
 
     @BeforeEach
     void cleanPayments() {
+        TestAuth.install(http);
+        TestAuth.asDefaultMerchant();
         jdbc.execute("TRUNCATE payment_events, payments, outbox CASCADE");
     }
 
-    ResponseEntity<Map> create(String clientId, String key, UUID payer, String merchant, String amount, String currency) {
+    /** Creates a payment as the MERCHANT {@code subject}; the merchant id in the body is the subject itself. */
+    ResponseEntity<Map> create(String subject, String key, UUID payer, String amount, String currency) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        if (clientId != null) {
-            headers.set("X-Client-Id", clientId);
-        }
+        headers.setBearerAuth(TestTokens.token(subject, "MERCHANT"));
         if (key != null) {
             headers.set("Idempotency-Key", key);
         }
-        Map<String, Object> body = Map.of("merchantId", merchant, "payerAccountId", payer.toString(),
+        Map<String, Object> body = Map.of("merchantId", subject, "payerAccountId", payer.toString(),
                 "amount", new BigDecimal(amount), "currency", currency);
         return http.exchange("/payments", HttpMethod.POST, new HttpEntity<>(body, headers), Map.class);
     }
 
+    /** The default merchant creates a payment for itself. */
     ResponseEntity<Map> create(String key, String amount) {
-        return create("client-1", key, PAYER, "merchant-1", amount, "INR");
+        return create(TestAuth.DEFAULT_MERCHANT, key, PAYER, amount, "INR");
     }
 
     ResponseEntity<Map> post(String path) {

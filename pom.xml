@@ -16,6 +16,8 @@
   <modules>
     <module>common</module>
     <module>outbox</module>
+    <module>security</module>
+    <module>auth-service</module>
     <module>ledger-service</module>
     <module>payment-service</module>
     <module>notification-service</module>

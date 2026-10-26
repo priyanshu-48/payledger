@@ -10,10 +10,12 @@ import com.payledger.common.Money;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import com.payledger.security.testing.TestJwtConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -25,6 +27,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "ledger.consumer.enabled=true",
         "ledger.consumer.retry.initial=PT0.1S"})
+@Import(TestJwtConfiguration.class)
 abstract class AbstractConsumerTest extends AbstractKafkaTest {
 
     @Autowired JdbcTemplate jdbc;
@@ -38,6 +41,8 @@ abstract class AbstractConsumerTest extends AbstractKafkaTest {
 
     @BeforeEach
     void freshLedger() {
+        TestAuth.install(http);
+        TestAuth.asAdmin();
         jdbc.execute("TRUNCATE postings, journal_entries, account_balances, accounts, processed_events, outbox CASCADE");
         settlement = ledger.createAccount("settlement", AccountType.SETTLEMENT, "INR");
         merchant = ledger.createAccount("merchant-x", AccountType.MERCHANT, "INR");

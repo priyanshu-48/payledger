@@ -11,6 +11,7 @@ import com.payledger.ledger.service.LedgerService;
 import com.payledger.ledger.service.TransferCommand;
 import com.payledger.ledger.service.TransferFacade;
 import com.payledger.ledger.service.TransferResult;
+import com.payledger.security.Caller;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -96,7 +97,7 @@ class LedgerInvariantPropertyTest {
                 model[op.from()] -= op.amountMinor();
                 model[op.to()] += op.amountMinor();
                 if (op.retry()) {
-                    TransferResult again = transfers.transfer(cmd);
+                    TransferResult again = transfers.transfer(Caller.system(), cmd);
                     assertThat(again.replayed()).isTrue();
                     assertThat(again.entryId()).isEqualTo(result.entryId());
                 }
@@ -131,7 +132,7 @@ class LedgerInvariantPropertyTest {
     /** Runs the transfer; expected business failures return null, anything unexpected fails the property. */
     private TransferResult attempt(TransferCommand cmd, boolean shouldSucceed) {
         try {
-            TransferResult result = transfers.transfer(cmd);
+            TransferResult result = transfers.transfer(Caller.system(), cmd);
             assertThat(shouldSucceed).as("transfer succeeded but the model expected a refusal").isTrue();
             return result;
         } catch (InsufficientFundsException | InvalidTransferException e) {

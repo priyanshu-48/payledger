@@ -10,7 +10,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 [ -f .env ] || { echo "no .env found: cp .env.example .env first"; exit 2; }
+set -a; . ./.env; set +a
+. ops/lib/auth.sh
 
+# These scripts generate load from one admin and one merchant, which the default per-client rate limits
+# (30 a minute, ADR 0019) would throttle; raise them for this run only.
+export TRANSFER_RATE_PER_MINUTE=100000 PAYMENT_RATE_PER_MINUTE=100000
 export MOCK_BANK_LATENCY_MIN_MS=2 MOCK_BANK_LATENCY_MAX_MS=20
 export MOCK_BANK_DECLINE_RATE=0 MOCK_BANK_TIMEOUT_RATE=0 MOCK_BANK_LOST_RESPONSE_RATE=0
 P="docker compose -p payledger-e2e"
@@ -27,22 +32,29 @@ post() { curl -sf -X POST "$1" -H 'Content-Type: application/json' "${@:3}" -d "
 
 echo "== starting stack (fresh volumes)"
 $P down -v >/dev/null 2>&1 || true
-$P up -d --build postgres kafka jaeger payment-service ledger-service notification-service >/dev/null
+$P up -d --build postgres kafka jaeger auth-service payment-service ledger-service notification-service >/dev/null
 for i in $(seq 1 120); do
-  [ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 5 ] && break
+  [ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 6 ] && break
   sleep 2
 done
-[ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 5 ] || { echo "stack did not become healthy"; exit 2; }
+[ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 6 ] || { echo "stack did not become healthy"; exit 2; }
+
+echo "== users: ADMIN token for ledger setup, MERCHANT token for the payment"
+ADMIN=$(admin_token)
+MERCHANT_PASSWORD=$(new_password)
+create_user "$ADMIN" e2e-merchant "$MERCHANT_PASSWORD" MERCHANT
+MTOKEN=$(auth_login e2e-merchant "$MERCHANT_PASSWORD")
+AUTHZ="Authorization: Bearer $ADMIN"
 
 echo "== one funded wallet, one merchant, one captured payment"
-SETTLEMENT=$(post $LEDGER/accounts '{"ownerId":"e2e-settlement","type":"SETTLEMENT","currency":"INR"}' | json_id)
-post $LEDGER/accounts '{"ownerId":"e2e-merchant","type":"MERCHANT","currency":"INR"}' >/dev/null
-WALLET=$(post $LEDGER/accounts '{"ownerId":"e2e-alice","type":"USER_WALLET","currency":"INR"}' | json_id)
+SETTLEMENT=$(post $LEDGER/accounts '{"ownerId":"e2e-settlement","type":"SETTLEMENT","currency":"INR"}' -H "$AUTHZ" | json_id)
+post $LEDGER/accounts '{"ownerId":"e2e-merchant","type":"MERCHANT","currency":"INR"}' -H "$AUTHZ" >/dev/null
+WALLET=$(post $LEDGER/accounts '{"ownerId":"e2e-alice","type":"USER_WALLET","currency":"INR"}' -H "$AUTHZ" | json_id)
 post $LEDGER/transfers "{\"fromAccountId\":\"$SETTLEMENT\",\"toAccountId\":\"$WALLET\",\"amount\":1000.00,\"currency\":\"INR\"}" \
-  -H 'Idempotency-Key: e2e-fund' >/dev/null
+  -H 'Idempotency-Key: e2e-fund' -H "$AUTHZ" >/dev/null
 PAYMENT=$(post $PAYMENTS/payments "{\"merchantId\":\"e2e-merchant\",\"payerAccountId\":\"$WALLET\",\"amount\":25.00,\"currency\":\"INR\"}" \
-  -H 'X-Client-Id: e2e' -H 'Idempotency-Key: e2e-pay-1' | json_id)
-curl -sf -X POST "$PAYMENTS/payments/$PAYMENT/capture" >/dev/null
+  -H "Authorization: Bearer $MTOKEN" -H 'Idempotency-Key: e2e-pay-1' | json_id)
+curl -sf -X POST "$PAYMENTS/payments/$PAYMENT/capture" -H "Authorization: Bearer $MTOKEN" >/dev/null
 
 echo "== waiting for the mock emails (funding: 2, capture: 2)"
 for i in $(seq 1 60); do

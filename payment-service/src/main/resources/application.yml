@@ -25,7 +25,13 @@ spring:
         request.timeout.ms: 5000
         delivery.timeout.ms: 15000
 payledger:
+  security:
+    jwks-uri: ${AUTH_JWKS_URI:http://localhost:8084/.well-known/jwks.json}
+    issuer: payledger-auth
+  ratelimit:
+    payments-per-minute: ${PAYMENT_RATE_PER_MINUTE:30}
   bank:
+    api-key: ${BANK_API_KEY:}   # the mock bank refuses calls without it; empty = nobody gets in
     base-url: ${BANK_URL:http://localhost:8081/mock-bank}
     timeout: ${BANK_TIMEOUT:PT3S}
   mock-bank:

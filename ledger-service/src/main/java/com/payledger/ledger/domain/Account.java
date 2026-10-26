@@ -42,4 +42,7 @@ public class Account extends NewAwareEntity<UUID> {
     public Instant getCreatedAt() { return createdAt; }
 
     public boolean isActive() { return status == AccountStatus.ACTIVE; }
+
+    /** Freeze or unfreeze. Callers hold the account's balance-row lock so this cannot race a transfer. */
+    public void changeStatus(AccountStatus newStatus) { this.status = newStatus; }
 }

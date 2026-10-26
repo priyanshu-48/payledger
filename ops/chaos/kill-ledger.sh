@@ -11,7 +11,12 @@ set -euo pipefail
 N=${1:-300}
 cd "$(dirname "$0")/../.."
 [ -f .env ] || { echo "no .env found: cp .env.example .env first"; exit 2; }
+set -a; . ./.env; set +a
+. ops/lib/auth.sh
 
+# These scripts generate load from one admin and one merchant, which the default per-client rate limits
+# (30 a minute, ADR 0019) would throttle; raise them for this run only.
+export TRANSFER_RATE_PER_MINUTE=100000 PAYMENT_RATE_PER_MINUTE=100000
 export MOCK_BANK_LATENCY_MIN_MS=2 MOCK_BANK_LATENCY_MAX_MS=20
 export MOCK_BANK_DECLINE_RATE=0 MOCK_BANK_TIMEOUT_RATE=0 MOCK_BANK_LOST_RESPONSE_RATE=0
 P="docker compose -p payledger-chaos"
@@ -28,32 +33,39 @@ post() { curl -sf -X POST "$1" -H 'Content-Type: application/json' "${@:3}" -d "
 
 echo "== starting stack (fresh volumes)"
 $P down -v >/dev/null 2>&1 || true
-$P up -d --build postgres kafka payment-service ledger-service >/dev/null
+$P up -d --build postgres kafka auth-service payment-service ledger-service >/dev/null
 for i in $(seq 1 90); do
-  [ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 4 ] && break
+  [ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 5 ] && break
   sleep 2
 done
-[ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 4 ] || { echo "stack did not become healthy"; exit 2; }
+[ "$($P ps --format '{{.Status}}' | grep -c '(healthy)')" = 5 ] || { echo "stack did not become healthy"; exit 2; }
+
+echo "== users: an ADMIN token for the ledger setup, a MERCHANT token for the payments"
+ADMIN=$(admin_token)
+MERCHANT_PASSWORD=$(new_password)
+create_user "$ADMIN" chaos-merchant "$MERCHANT_PASSWORD" MERCHANT
+MTOKEN=$(auth_login chaos-merchant "$MERCHANT_PASSWORD")
+AUTHZ="Authorization: Bearer $ADMIN"
 
 echo "== ledger setup: settlement, merchant, $N funded wallets"
-SETTLEMENT=$(post $LEDGER/accounts '{"ownerId":"chaos-settlement","type":"SETTLEMENT","currency":"INR"}' | json_id)
-post $LEDGER/accounts '{"ownerId":"chaos-merchant","type":"MERCHANT","currency":"INR"}' >/dev/null
+SETTLEMENT=$(post $LEDGER/accounts '{"ownerId":"chaos-settlement","type":"SETTLEMENT","currency":"INR"}' -H "$AUTHZ" | json_id)
+post $LEDGER/accounts '{"ownerId":"chaos-merchant","type":"MERCHANT","currency":"INR"}' -H "$AUTHZ" >/dev/null
 : > "$WORK/wallets"
 for i in $(seq 1 "$N"); do
-  W=$(post $LEDGER/accounts "{\"ownerId\":\"chaos-wallet-$i\",\"type\":\"USER_WALLET\",\"currency\":\"INR\"}" | json_id)
+  W=$(post $LEDGER/accounts "{\"ownerId\":\"chaos-wallet-$i\",\"type\":\"USER_WALLET\",\"currency\":\"INR\"}" -H "$AUTHZ" | json_id)
   post $LEDGER/transfers "{\"fromAccountId\":\"$SETTLEMENT\",\"toAccountId\":\"$W\",\"amount\":1000.00,\"currency\":\"INR\"}" \
-    -H "Idempotency-Key: chaos-fund-$i" >/dev/null
+    -H "Idempotency-Key: chaos-fund-$i" -H "$AUTHZ" >/dev/null
   echo "$i $W" >> "$WORK/wallets"
 done
 
 pay() { # $1 index, $2 wallet id: create then capture one 10.00 payment
   local i=$1 w=$2 id
   id=$(post $PAYMENTS/payments "{\"merchantId\":\"chaos-merchant\",\"payerAccountId\":\"$w\",\"amount\":10.00,\"currency\":\"INR\"}" \
-        -H 'X-Client-Id: chaos' -H "Idempotency-Key: chaos-pay-$i" | json_id)
-  curl -sf -X POST "$PAYMENTS/payments/$id/capture" >/dev/null
+        -H "Authorization: Bearer $MTOKEN" -H "Idempotency-Key: chaos-pay-$i" | json_id)
+  curl -sf -X POST "$PAYMENTS/payments/$id/capture" -H "Authorization: Bearer $MTOKEN" >/dev/null
 }
 export -f pay post json_id
-export PAYMENTS
+export PAYMENTS MTOKEN
 
 echo "== creating and capturing $N payments (12 in parallel)"
 xargs -P 12 -L 1 bash -c 'pay "$0" "$1"' < "$WORK/wallets" &

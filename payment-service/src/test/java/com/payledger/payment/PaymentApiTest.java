@@ -57,8 +57,8 @@ class PaymentApiTest extends PaymentApiSupport {
 
     @Test
     void keysAreScopedPerClient() {
-        ResponseEntity<Map> a = create("client-a", "shared", PAYER, "m", "5.00", "INR");
-        ResponseEntity<Map> b = create("client-b", "shared", PAYER, "m", "5.00", "INR");
+        ResponseEntity<Map> a = create("merchant-a", "shared", PAYER, "5.00", "INR");
+        ResponseEntity<Map> b = create("merchant-b", "shared", PAYER, "5.00", "INR");
         assertThat(a.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(b.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(a.getBody().get("id")).isNotEqualTo(b.getBody().get("id"));
@@ -79,11 +79,13 @@ class PaymentApiTest extends PaymentApiSupport {
 
     @Test
     void badRequestsAndUnknownIds() {
-        assertThat(create("client-1", null, PAYER, "m", "5.00", "INR").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(create(null, "k", PAYER, "m", "5.00", "INR").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(create("client-1", "k-5", PAYER, "m", "0.00", "INR").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(create("client-1", "k-6", PAYER, "m", "1.005", "INR").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(create("client-1", "k-7", PAYER, "m", "1.00", "rupee").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(create(TestAuth.DEFAULT_MERCHANT, null, PAYER, "5.00", "INR").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(create(TestAuth.DEFAULT_MERCHANT, "k-5", PAYER, "0.00", "INR").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(create(TestAuth.DEFAULT_MERCHANT, "k-6", PAYER, "1.005", "INR").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(create(TestAuth.DEFAULT_MERCHANT, "k-7", PAYER, "1.00", "rupee").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(http.getForEntity("/payments/{id}", Map.class, UUID.randomUUID()).getStatusCode())
+                .as("a merchant is not told whether an id exists").isEqualTo(HttpStatus.FORBIDDEN);
+        TestAuth.as("root", "ADMIN");
         assertThat(http.getForEntity("/payments/{id}", Map.class, UUID.randomUUID()).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(count("payments")).isZero();

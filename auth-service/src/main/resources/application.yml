@@ -1,0 +1,32 @@
+server:
+  port: 8084
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+payledger:
+  security:
+    # auth-service verifies its own tokens with its own key; this value is only the (unused) default of the shared module
+    jwks-uri: http://localhost:8084/.well-known/jwks.json
+auth:
+  issuer: payledger-auth
+  token-ttl: ${AUTH_TOKEN_TTL:PT15M}
+  jwt-private-key: ${AUTH_JWT_PRIVATE_KEY:}             # PKCS8 PEM; empty = generate at startup (tokens die on restart)
+  bootstrap-admin-password: ${AUTH_ADMIN_PASSWORD:}     # creates user "admin" when the users table is empty
+  rate-limit:
+    login-per-minute: ${AUTH_LOGIN_RATE_PER_MINUTE:10}
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

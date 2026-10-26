@@ -1,0 +1,17 @@
+# ADR 0019: Authorization, rate limits, audit log and log hygiene
+- Status: accepted · Date: 2026-10-26
+## Context
+SPEC 6.8: USER sees their own wallet only, MERCHANT their own payments, ADMIN may reconcile, replay and freeze. Ownership must be checked in the service layer, not only by role. Rate limits return 429 with Retry-After, the audit log is append-only, and no card numbers or secrets may reach the logs, enforced by a test.
+## Decision
+- **Two layers.** The filter chain rejects unauthenticated requests (401) and applies coarse role rules (ADMIN-only paths: `/recon/**`, `/admin/**`, account freeze and unfreeze). Fine-grained ownership lives in service classes that take a `Caller` (subject and roles): `LedgerAccess` in the ledger, `PaymentAccess` in the payment service. Any entry point therefore gets the checks, not just the controller. Internal flows (the Kafka consumer, the reconciliation batch) call the services with `Caller.system()` and are not blocked.
+- **Ledger rules:** ADMIN may do anything. USER and MERCHANT may read an account and debit from it only if `owner_id == sub`, and may create only an account they own (USER -> USER_WALLET, MERCHANT -> MERCHANT). Crediting someone else's wallet is allowed (peer to peer). Denied access is 403.
+- **Payment rules:** creating needs role MERCHANT and `merchantId == sub`; reading, capturing and refunding need `payment.merchant_id == sub` or ADMIN.
+- **Freezing** an account locks its balance row first (the same lock order as transfers), so a freeze serialises with in-flight transfers instead of racing them.
+- **Mock bank:** its HTTP endpoints require the header `X-Bank-Api-Key` (env `BANK_API_KEY`), sent by `BankClient`. Actuator `health` and `prometheus` are open and must be protected by the network (compose network, ingress rules).
+- **Rate limits** (Bucket4j, in memory): `POST /transfers` and `POST /payments` 30 per minute per subject, `POST /auth/token` 10 per minute per IP; configurable by env. Exceeding returns 429, `Retry-After` and `X-RateLimit-Remaining`. Buckets are per instance; with several instances a shared store (Redis or JDBC) is the upgrade. The bucket map is bounded so spoofed keys cannot exhaust memory.
+- **Audit log:** successful privileged actions insert into `audit_log` (actor, action, target, details): account freeze and unfreeze, DLT replay, reconciliation runs, accounts created by an ADMIN (ledger), and user creation (auth). The table has the same append-only trigger as the journal. Money movements are already in the journal. Failed attempts are logged at WARN without payloads.
+- **Log hygiene:** no request, header or body logging anywhere; validation errors return field names and messages, never the rejected value. A test per service drives logins, bearer tokens, bad payloads (a card-number-looking value) and the bank key, and asserts none of them appear in the captured logs or error responses.
+## Consequences
+URL rules and service checks must both be right; tests cover each layer separately. 403 for another user's resource reveals that the id exists; UUIDs make guessing impractical.
+## Alternatives rejected
+Method security annotations alone (hard to express "owner of this account" and invisible to non-HTTP callers); returning 404 for foreign resources (harder to debug, little gain with random UUIDs); a distributed rate limiter now (needs Redis, one instance for the demo).

@@ -5,7 +5,7 @@ generate: reads the PAYMENT_CAPTURE entries of the running ledger and writes a b
           deliberate errors, plus the answer key of what the reconciliation must report.
 verify:   compares a finished run's mismatches (GET /recon/runs/{id}/items) with that answer key.
 
-Standard library only; talks to Postgres through `docker compose ... psql`.
+Standard library only; talks to Postgres through `docker compose ... psql`. `verify` needs an ADMIN token in RECON_TOKEN.
 """
 import argparse
 import csv
@@ -77,7 +77,8 @@ def verify(args):
         for row in csv.DictReader(f):
             expected[row["external_ref"]] = row["expected_outcome"]
     url = f"{args.base}/recon/runs/{args.run}/items?size=1000"
-    with urllib.request.urlopen(url) as response:  # default listing excludes MATCHED
+    request = urllib.request.Request(url, headers={"Authorization": "Bearer " + os.environ["RECON_TOKEN"]})
+    with urllib.request.urlopen(request) as response:  # default listing excludes MATCHED
         found = {i["externalRef"]: i["outcome"] for i in json.load(response)}
     missed = {r: o for r, o in expected.items() if found.get(r) != o}
     false_positives = {r: o for r, o in found.items() if r not in expected}

@@ -68,3 +68,24 @@ One funded wallet, one merchant, one payment created and captured through the re
 
 SPEC section 11 row: Recon rows / planted mismatches found -> 11 planted in a 40-capture demo (and 19 in the 200-capture test): all found.
 
+## M7: security
+
+| Check | Result |
+|---|---|
+| Full `./mvnw verify` | 138 tests, 0 failures (common 5, security 8, auth-service 9, ledger 75, payment 36, notification 5) |
+| User A reads user B's wallet | 403 (HTTP test and a service-layer test with no HTTP); own wallet 200 |
+| User A debits user B's wallet / credits it | 403 / 201 (peer to peer allowed) |
+| Merchant B reads, captures or refunds merchant A's payment | 403 for all four; ADMIN reads any, gets 404 for a missing id; non-admin gets 403 for a missing id |
+| No token, expired, wrong issuer, foreign signing key, tampered | 401 every time |
+| USER or MERCHANT on `/recon`, `/admin/dlt/replay`, account freeze | 403; ADMIN allowed, freeze/unfreeze/replay/recon/admin account creation/user creation audited |
+| Rate limit (limit 3 in the test) | 4th request 429 with `Retry-After` and `X-RateLimit-Remaining: 0`; other clients unaffected; reads not limited |
+| Login brute force (limit 3 in the test) | 429 even with the right password |
+| Passwords | BCrypt hashes only; same 401 for unknown user and wrong password |
+| Mock bank | 401 without the key, 401 with a wrong key, reaches the bank with the right key |
+| Secrets in logs | Log-capture tests in auth, ledger and payment: no password, token, `Authorization` value, bank key or card-like number (3 test PANs) in logs or error responses. The test found two real leaks (password and token printed by request/response `toString` at DEBUG), now masked. |
+| Real stack, secured (`ops/e2e/trace-check.sh`) | PASS: one trace of 12 spans across payment, ledger and notification, 4 mock emails |
+| Real stack, secured (`ops/chaos/kill-ledger.sh 300`) | PASS: killed after 403 of 900 events; 300 captured, 300 ledger entries, 600 postings; 0 lost, 0 duplicated |
+| Real stack, secured (`ops/recon/run-demo.sh 40`) | PASS: 11 planted errors, 11 found, 0 false positives; re-upload returned the same run, 43 items before and after |
+
+Load scripts raise the per-client limits for their own run only (`TRANSFER_RATE_PER_MINUTE`, `PAYMENT_RATE_PER_MINUTE`); defaults are 30 a minute.
+

@@ -18,10 +18,21 @@ Health: `:8081` payment, `:8082` ledger, `:8083` notification (`/actuator/health
 ## Locking strategy
 `LEDGER_LOCKING_STRATEGY=PESSIMISTIC` (default) or `OPTIMISTIC` selects how `POST /transfers` serialises concurrent updates to the same account. Trade-offs and measurements: `docs/decisions/0009-pessimistic-vs-optimistic.md`, `docs/results.md`.
 
+## Security (auth-service, :8084)
+Every API needs a JWT from auth-service (ADR 0018, 0019). The first user, `admin` (role ADMIN), is created from `AUTH_ADMIN_PASSWORD` in `.env`; only an ADMIN creates other users (roles USER, MERCHANT, ADMIN).
+```bash
+ADMIN=$(curl -s -X POST localhost:8084/auth/token -H 'Content-Type: application/json' \
+  -d "{\"username\":\"admin\",\"password\":\"$AUTH_ADMIN_PASSWORD\"}" | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+curl -X POST localhost:8084/auth/users -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"username":"m1","password":"a-long-enough-password","role":"MERCHANT"}'
+```
+The token's subject is matched with the owner of accounts (ledger `owner_id`) and payments (`merchantId`): a USER sees only their own wallet, a MERCHANT only its own payments, an ADMIN everything and the operator endpoints (`/recon/*`, `/admin/*`, account freeze). Money-moving endpoints are rate limited per client (429 with `Retry-After`). Tokens last 15 minutes.
+
 ## Payments (payment-service, :8081)
+Log in as a MERCHANT user (above), put its name in `merchantId`, and send its token:
 ```bash
 curl -X POST localhost:8081/payments -H 'Content-Type: application/json' \
-  -H 'X-Client-Id: demo' -H 'Idempotency-Key: pay-1' \
+  -H "Authorization: Bearer $MERCHANT_TOKEN" -H 'Idempotency-Key: pay-1' \
   -d '{"merchantId":"m1","payerAccountId":"00000000-0000-0000-0000-000000000042","amount":500.00,"currency":"INR"}'
 ```
 Then `POST /payments/{id}/capture`, `POST /payments/{id}/refund`, `GET /payments/{id}/events`. The stand-in bank lives at `/mock-bank` and fails on purpose (declines, timeouts, lost responses; see `MOCK_BANK_*` in `docker-compose.yml`). A 202 means the bank's answer is unknown; the status-check job resolves it.

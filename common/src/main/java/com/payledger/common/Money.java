@@ -8,7 +8,7 @@ public record Money(long minor, String currency) {
 
     public Money {
         if (currency == null || !currency.matches("[A-Z]{3}")) {
-            throw new IllegalArgumentException("currency must be 3 upper-case letters: " + currency);
+            throw new IllegalArgumentException("currency must be 3 upper-case letters");
         }
     }
 

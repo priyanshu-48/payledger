@@ -3,14 +3,18 @@ package com.payledger.ledger.recon;
 import com.payledger.ledger.recon.ReconRunRepository.Item;
 import com.payledger.ledger.recon.ReconRunRepository.Run;
 import com.payledger.ledger.recon.ReconService.Submitted;
+import com.payledger.security.AuditLog;
+import com.payledger.security.Caller;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,9 +45,11 @@ class ReconController {
     private static final int MAX_PAGE_SIZE = 1000;
 
     private final ReconService service;
+    private final AuditLog audit;
 
-    ReconController(ReconService service) {
+    ReconController(ReconService service, AuditLog audit) {
         this.service = service;
+        this.audit = audit;
     }
 
     /**
@@ -53,10 +59,15 @@ class ReconController {
     @PostMapping(path = "/recon/runs", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<RunResponse> start(@RequestParam("file") MultipartFile file,
                                       @RequestParam("periodStart") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant periodStart,
-                                      @RequestParam("periodEnd") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant periodEnd)
+                                      @RequestParam("periodEnd") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant periodEnd,
+                                      Authentication authentication)
             throws IOException {
         Submitted submitted = service.submit(file.getOriginalFilename() == null ? "upload.csv" : file.getOriginalFilename(),
                 file.getBytes(), periodStart, periodEnd);
+        if (submitted.created()) {
+            audit.record(Caller.from(authentication).subject(), "recon.run", submitted.run().id().toString(),
+                    Map.of("file", submitted.run().fileName(), "status", submitted.run().status()));
+        }
         HttpStatus status = "FAILED".equals(submitted.run().status()) ? HttpStatus.UNPROCESSABLE_ENTITY
                 : submitted.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(RunResponse.of(submitted.run()));

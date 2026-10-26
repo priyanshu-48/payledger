@@ -3,10 +3,12 @@ package com.payledger.ledger;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
+import com.payledger.security.testing.TestJwtConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -16,6 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /** HTTP-level helpers shared by the API tests. Each test starts from empty ledger tables. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(TestJwtConfiguration.class)
 abstract class ApiTestSupport extends AbstractPostgresTest {
 
     @Autowired TestRestTemplate http;
@@ -23,6 +26,8 @@ abstract class ApiTestSupport extends AbstractPostgresTest {
 
     @BeforeEach
     void cleanLedger() {
+        TestAuth.install(http);
+        TestAuth.asAdmin();
         jdbc.execute("TRUNCATE postings, journal_entries, account_balances, accounts, outbox CASCADE");
     }
 

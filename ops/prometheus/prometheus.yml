@@ -4,4 +4,4 @@ scrape_configs:
   - job_name: payledger
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ['payment-service:8081', 'ledger-service:8082', 'notification-service:8083']
+      - targets: ['payment-service:8081', 'ledger-service:8082', 'notification-service:8083', 'auth-service:8084']

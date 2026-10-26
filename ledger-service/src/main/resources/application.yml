@@ -46,6 +46,11 @@ spring:
     template:
       observation-enabled: true
 payledger:
+  security:
+    jwks-uri: ${AUTH_JWKS_URI:http://localhost:8084/.well-known/jwks.json}
+    issuer: payledger-auth
+  ratelimit:
+    transfers-per-minute: ${TRANSFER_RATE_PER_MINUTE:30}
   outbox:
     topic: ledger.events
     enabled: ${OUTBOX_ENABLED:true}
