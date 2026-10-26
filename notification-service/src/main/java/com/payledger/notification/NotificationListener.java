@@ -3,6 +3,8 @@ package com.payledger.notification;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.payledger.common.LedgerEventMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "notification.consumer.enabled", havingValue = "true", matchIfMissing = true)
 class NotificationListener {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificationListener.class);
+
     private final NotificationProcessor processor;
     private final ObjectMapper json;
 
@@ -26,6 +30,8 @@ class NotificationListener {
     @KafkaListener(id = "ledger-events", topics = LedgerEventMessage.TOPIC, groupId = "notification-service",
             concurrency = "${notification.consumer.concurrency:3}")
     void on(String payload) throws JsonProcessingException {
-        processor.process(json.readValue(payload, LedgerEventMessage.class));
+        LedgerEventMessage event = json.readValue(payload, LedgerEventMessage.class);
+        log.info("ledger event {} received", event.type());
+        processor.process(event);
     }
 }

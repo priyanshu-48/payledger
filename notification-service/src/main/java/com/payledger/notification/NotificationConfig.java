@@ -2,6 +2,9 @@ package com.payledger.notification;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.payledger.common.LedgerEventMessage;
+import com.payledger.outbox.ConsumerLagMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.kafka.core.KafkaAdmin;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import java.time.Duration;
@@ -39,6 +42,12 @@ class NotificationConfig {
         @Bean
         NewTopic ledgerEventsDeadLetterTopic() {
             return TopicBuilder.name(LedgerEventMessage.DEAD_LETTER_TOPIC).partitions(3).replicas(1).build();
+        }
+
+        @Bean(destroyMethod = "close")
+        ConsumerLagMetrics consumerLag(KafkaAdmin admin, MeterRegistry registry,
+                                       @Value("${spring.kafka.consumer.group-id}") String group) {
+            return new ConsumerLagMetrics(admin.getConfigurationProperties(), group, LedgerEventMessage.TOPIC, registry);
         }
 
         @Bean

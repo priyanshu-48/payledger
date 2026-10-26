@@ -9,7 +9,10 @@ import com.payledger.ledger.service.LedgerExceptions.AccountNotActiveException;
 import com.payledger.ledger.service.LedgerExceptions.AccountNotFoundException;
 import com.payledger.ledger.service.LedgerExceptions.IdempotencyConflictException;
 import com.payledger.ledger.service.LedgerExceptions.InvalidTransferException;
+import com.payledger.outbox.ConsumerLagMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +42,12 @@ class KafkaConsumerConfig {
     @Bean
     NewTopic paymentsEventsDeadLetterTopic() {
         return TopicBuilder.name(PaymentEventMessage.DEAD_LETTER_TOPIC).partitions(3).replicas(1).build();
+    }
+
+    @Bean(destroyMethod = "close")
+    ConsumerLagMetrics consumerLag(KafkaAdmin admin, MeterRegistry registry,
+                                   @Value("${spring.kafka.consumer.group-id}") String group) {
+        return new ConsumerLagMetrics(admin.getConfigurationProperties(), group, PaymentEventMessage.TOPIC, registry);
     }
 
     @Bean

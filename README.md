@@ -62,3 +62,20 @@ Try it end to end (plants errors in a generated bank file and checks every one i
 ```bash
 ops/recon/run-demo.sh 40
 ```
+
+## Observability: metrics and dashboard
+Every service exposes Prometheus metrics at `/actuator/prometheus`; Prometheus (:9090) scrapes them and Grafana (:3000, read-only without login) loads `ops/grafana/dashboards/payledger.json`.
+
+![PayLedger dashboard](docs/img/dashboard.png)
+
+Taken from `ops/observability/dashboard-demo.sh`: payments with bank faults, Kafka stopped for a while (outbox lag), ledger-service killed during traffic (consumer lag), a reconciliation run with planted errors (3 amount mismatches, 2 duplicates, 4 missing in bank, 3 missing in ledger), and a burst of bad logins (429). The same script runs every dashboard query against Prometheus and fails if one is empty.
+
+| Metric | Meaning |
+|---|---|
+| `payments_by_status{status}` | payments in each status (from the database) |
+| `ledger_transfer_duration_seconds` | transfer latency histogram, tagged `outcome` (created, replayed, refusal type) |
+| `outbox_oldest_unpublished_age_seconds`, `outbox_unpublished` | outbox lag and backlog (payment and ledger) |
+| `kafka_consumer_group_lag{group,topic}` | messages the consumer group is behind, asked of the broker |
+| `recon_mismatches_total{outcome}`, `recon_runs_total{status}` | reconciliation results |
+
+Consumer log lines carry the trace id of the request that caused the event, so one id finds the HTTP call, the outbox publish, the ledger posting and the notification. Decisions: [ADR 0020](docs/decisions/0020-observability.md).

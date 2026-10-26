@@ -89,3 +89,16 @@ SPEC section 11 row: Recon rows / planted mismatches found -> 11 planted in a 40
 
 Load scripts raise the per-client limits for their own run only (`TRANSFER_RATE_PER_MINUTE`, `PAYMENT_RATE_PER_MINUTE`); defaults are 30 a minute.
 
+
+## M8: observability
+
+| Check | Result |
+|---|---|
+| Full `./mvnw verify` | 145 tests, 0 failures (common 5, security 8, auth-service 9, ledger 80, payment 38, notification 5) |
+| Payments-by-status gauge | each status counted, unused statuses 0 (test) |
+| Outbox lag gauge | rows backdated 2 min: age >= 120 s and backlog 2; after publishing both 0 (test). The test found a bug: an empty outbox gave NaN instead of 0, fixed |
+| Transfer timer | created, replayed and refused transfers each land in their own `outcome`; histogram buckets published (test) |
+| Recon counters | a run adds exactly its mismatches; re-uploading the same file adds nothing (test) |
+| Consumer lag | consumer stopped, 7 messages published: lag 7; restarted: 0 (test, real Kafka) |
+| Trace id in consumer logs | log line of the listener carries the trace id of the publishing span (test) |
+| Real stack (`ops/observability/dashboard-demo.sh`) | PASS: all 14 dashboard queries return data; outbox lag peaked near 40 s with Kafka stopped (235 unpublished rows); recon found 3/2/4/3 planted mismatches; 429s from the login burst; screenshot `docs/img/dashboard.png` |

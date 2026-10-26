@@ -133,7 +133,11 @@ services:
     image: grafana/grafana:11.3.0
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?}
-    volumes: ["./ops/grafana/provisioning:/etc/grafana/provisioning:ro"]
+      GF_AUTH_ANONYMOUS_ENABLED: "true"        # read-only dashboards without a login (ADR 0020); editing needs the admin password
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports: ["3000:3000"]
     depends_on: {prometheus: {condition: service_healthy}}
     healthcheck:

@@ -62,4 +62,12 @@ public class OutboxStore {
     public long unpublishedCount() {
         return jdbc.queryForObject("SELECT count(*) FROM outbox WHERE published_at IS NULL", Long.class);
     }
+
+    /** Age of the oldest unpublished row (the outbox lag); 0 when everything is published. Uses the partial index. */
+    public double oldestUnpublishedAgeSeconds() {
+        return jdbc.queryForList("""
+                SELECT extract(epoch FROM now() - created_at)::float8
+                FROM outbox WHERE published_at IS NULL ORDER BY seq LIMIT 1
+                """, Double.class).stream().findFirst().orElse(0.0);
+    }
 }

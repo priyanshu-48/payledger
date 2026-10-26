@@ -1,5 +1,6 @@
 package com.payledger.outbox;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
 import java.time.Duration;
@@ -20,6 +21,11 @@ public class OutboxConfiguration {
     @Bean
     OutboxStore outboxStore(JdbcTemplate jdbc) {
         return new OutboxStore(jdbc);
+    }
+
+    @Bean
+    OutboxMetrics outboxMetrics(OutboxStore store, MeterRegistry registry) {
+        return new OutboxMetrics(store, registry);
     }
 
     @Bean

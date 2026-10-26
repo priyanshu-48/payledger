@@ -1,6 +1,7 @@
 apiVersion: 1
 datasources:
   - name: Prometheus
+    uid: prometheus          # the dashboard JSON refers to this uid, so it works on any Grafana
     type: prometheus
     url: http://prometheus:9090
     isDefault: true

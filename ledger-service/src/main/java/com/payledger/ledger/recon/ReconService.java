@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
@@ -45,9 +46,11 @@ public class ReconService {
     private final JobLauncher launcher;
     private final Job job;
     private final Path storageDir;
+    private final MeterRegistry metrics;
 
     public ReconService(ReconRunRepository runs, JobLauncher launcher, @Qualifier("reconJob") Job job,
-                        @Value("${ledger.recon.storage-dir}") String storageDir) {
+                        @Value("${ledger.recon.storage-dir}") String storageDir, MeterRegistry metrics) {
+        this.metrics = metrics;
         this.runs = runs;
         this.launcher = launcher;
         this.job = job;
@@ -100,7 +103,21 @@ public class ReconService {
         } catch (Exception e) {
             runs.markFailed(run.id(), e.getMessage());
         }
-        return new Submitted(get(run.id()), fresh);
+        Run result = get(run.id());
+        recordMetrics(result);
+        return new Submitted(result, fresh);
+    }
+
+    /** Counts this call's own run only; answers served from an earlier run return before reaching here (ADR 0020). */
+    private void recordMetrics(Run run) {
+        metrics.counter("recon.runs", "status", run.status()).increment();
+        if (!"COMPLETED".equals(run.status())) {
+            return;
+        }
+        metrics.counter("recon.mismatches", "outcome", "MISSING_IN_LEDGER").increment(run.missingInLedger());
+        metrics.counter("recon.mismatches", "outcome", "MISSING_IN_BANK").increment(run.missingInBank());
+        metrics.counter("recon.mismatches", "outcome", "AMOUNT_MISMATCH").increment(run.amountMismatch());
+        metrics.counter("recon.mismatches", "outcome", "DUPLICATE_IN_BANK").increment(run.duplicateInBank());
     }
 
     public Run get(UUID id) {
