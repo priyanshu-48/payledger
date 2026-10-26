@@ -21,7 +21,7 @@ pipeline {
             parallel {
                 stage('Backend') {
                     steps {
-                        sh './mvnw -B verify'
+                        sh './mvnw -B -ntp verify'
                     }
                     post {
                         always {

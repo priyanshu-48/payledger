@@ -7,6 +7,8 @@ const adminPassword = process.env.AUTH_ADMIN_PASSWORD ?? "";
 const run = Date.now().toString(36);
 const merchant = `ui-merchant-${run}`;
 const wallet = `ui-wallet-${run}`;
+// A second funded wallet that no payment touches: the payer's balance changes when the ledger consumer posts a capture.
+const saver = `ui-saver-${run}`;
 const merchantPassword = randomBytes(12).toString("hex");
 
 async function token(request: APIRequestContext, username: string, password: string): Promise<string> {
@@ -43,6 +45,12 @@ test.beforeAll(async ({ request }) => {
   const settlement = await account(`ui-settlement-${run}`, "SETTLEMENT");
   const walletId = await account(wallet, "USER_WALLET");
   await account(merchant, "MERCHANT");
+  const saverId = await account(saver, "USER_WALLET");
+  const saving = await request.post("/api/ledger/transfers", {
+    headers: bearer(admin, { "Idempotency-Key": `ui-save-${run}` }),
+    data: { fromAccountId: settlement, toAccountId: saverId, amount: 100.0, currency: "INR" },
+  });
+  expect(saving.status()).toBe(201);
   const funding = await request.post("/api/ledger/transfers", {
     headers: bearer(admin, { "Idempotency-Key": `ui-fund-${run}` }),
     data: { fromAccountId: settlement, toAccountId: walletId, amount: 100.0, currency: "INR" },
@@ -76,13 +84,13 @@ test("an admin works through accounts, payments, reconciliation and replay", asy
 
   // Accounts: balances, filter, freeze and unfreeze
   await expect(page.getByRole("heading", { name: "Accounts" })).toBeVisible();
-  await page.getByLabel("Owner").fill(wallet);
-  const walletRow = page.getByRole("row").filter({ hasText: wallet });
-  await expect(walletRow).toContainText("100.00 INR");
-  await walletRow.getByRole("button", { name: "Freeze" }).click();
-  await expect(walletRow).toContainText("FROZEN");
-  await walletRow.getByRole("button", { name: "Unfreeze" }).click();
-  await expect(walletRow).toContainText("ACTIVE");
+  await page.getByLabel("Owner").fill(saver);
+  const saverRow = page.getByRole("row").filter({ hasText: saver });
+  await expect(saverRow).toContainText("100.00 INR");
+  await saverRow.getByRole("button", { name: "Freeze" }).click();
+  await expect(saverRow).toContainText("FROZEN");
+  await saverRow.getByRole("button", { name: "Unfreeze" }).click();
+  await expect(saverRow).toContainText("ACTIVE");
 
   // Payments: history of a captured payment, then capture the open one from the UI
   await page.getByRole("link", { name: "Payments" }).click();

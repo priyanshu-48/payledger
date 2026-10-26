@@ -14,7 +14,7 @@ services:
       PAYLEDGER_REPO: ${PAYLEDGER_REPO:-https://github.com/priyanshu-48/payledger.git}
       PAYLEDGER_BRANCH: ${PAYLEDGER_BRANCH:-main}
       # Workspaces live in the shared folder below, under the same path inside and outside (ADR 0022).
-      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false -Djenkins.model.Jenkins.workspacesDir=/c/jenkins-work/$${ITEM_FULL_NAME}"
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false -Djenkins.model.Jenkins.workspacesDir=/c/jenkins-work/$${ITEM_FULL_NAME} ${JENKINS_EXTRA_OPTS:-}"
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
