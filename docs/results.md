@@ -111,3 +111,12 @@ Load scripts raise the per-client limits for their own run only (`TRANSFER_RATE_
 | `npm run build` (strict TypeScript + Vite) | clean; bundle 179 kB (58 kB gzip) |
 | New endpoints | account list (admin only, filters, size cap, paging without overlap), payment list (admin all, merchant own, status filter, user 403), recon run list (admin only, newest first) |
 | Playwright smoke test against the real stack (`ops/ui/smoke.sh`) | 3 of 3 passed in about 7 s: wrong password refused; admin freezes/unfreezes an account, reads a 3-step payment history, captures a payment from the UI, uploads a reconciliation file and sees the mismatch, runs dead-letter replay; merchant sees only its own 2 payments and no admin menus; a reload signs out |
+
+## Jenkins pipeline
+
+| Check | Result |
+|---|---|
+| Full pipeline in the Jenkins container | SUCCESS in about 19 min: Maven `verify` 151 tests (common 5, security 8, auth 9, ledger 84, payment 40, notification 5), admin-ui build, Playwright 3 of 3 |
+| Stage times (average) | Backend 9 min 18 s (14 min on a cold build), Admin UI 31 s, Stack smoke 2 min 54 s |
+| Failure path | A deliberately failing test in `common` gave a red build in 90 s, 1 failed / 5 passed in the JUnit report, stack stage not started |
+| What the first runs found | Three failed builds before the first green: workspace path and local checkout settings (configuration), then a race in my smoke test (balance read while a capture was still being posted), fixed by asserting on an untouched wallet |

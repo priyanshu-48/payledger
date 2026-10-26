@@ -91,3 +91,14 @@ React + TypeScript + Vite, served by nginx, which also forwards `/api/<service>/
 - **Operations:** dead-letter replay.
 
 Development: `cd admin-ui && npm ci && npm run dev` (proxies to services on localhost). Smoke test: `ops/ui/smoke.sh` starts the stack in its own compose project and runs the Playwright test against it using the installed Microsoft Edge.
+
+## CI/CD: Jenkins
+The pipeline is in the [`Jenkinsfile`](Jenkinsfile) and Jenkins itself is code in [`jenkins/`](jenkins) ([ADR 0022](docs/decisions/0022-jenkins.md)); GitHub Actions (`ci.yml`) also builds every push.
+
+![Jenkins stage view](docs/img/jenkins.png)
+
+```bash
+docker compose -f jenkins/docker-compose.yml --env-file .env up -d --build   # http://localhost:8090
+```
+
+Stages: throwaway `.env` with random secrets, then Maven `verify` (all backend tests with Testcontainers) in parallel with the admin-ui type-check and build, then the real-stack Playwright smoke test (`ops/ui/smoke.sh`). Jenkins reaches Docker through the host's socket, polls the repository every five minutes, and is configured entirely by `jenkins/jenkins.yaml` (sign in as `admin` with `JENKINS_ADMIN_PASSWORD` from `.env`; anyone on localhost can view).
