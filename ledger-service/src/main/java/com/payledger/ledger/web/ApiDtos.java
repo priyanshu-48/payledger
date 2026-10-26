@@ -22,6 +22,10 @@ public final class ApiDtos {
     public record AccountResponse(UUID id, String ownerId, AccountType type, String currency, String status) {
     }
 
+    public record AccountListItem(UUID id, String ownerId, AccountType type, String currency, String status,
+                                  BigDecimal balance, Instant createdAt) {
+    }
+
     public record BalanceResponse(UUID accountId, BigDecimal balance, String currency) {
     }
 

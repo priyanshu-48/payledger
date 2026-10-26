@@ -41,6 +41,11 @@ public class ReconRunRepository {
         return jdbc.query("SELECT * FROM recon_runs WHERE id = ?", RUN, id).stream().findFirst();
     }
 
+    /** Latest runs first. */
+    public List<Run> latest(int limit) {
+        return jdbc.query("SELECT * FROM recon_runs ORDER BY started_at DESC LIMIT ?", RUN, limit);
+    }
+
     public Optional<Run> findByIdentity(String sha256, Instant start, Instant end) {
         return jdbc.query("SELECT * FROM recon_runs WHERE file_sha256 = ? AND period_start = ? AND period_end = ?",
                 RUN, sha256, utc(start), utc(end)).stream().findFirst();

@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,12 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByClientIdAndIdempotencyKey(String clientId, String idempotencyKey);
 
     List<Payment> findByStatusInAndUpdatedAtBefore(Collection<PaymentStatus> statuses, Instant cutoff);
+
+    /** Admin list: newest first; either filter may be null. */
+    @Query("select p from Payment p where (cast(:merchant as string) is null or p.merchantId = :merchant) "
+            + "and (cast(:status as string) is null or cast(p.status as string) = cast(:status as string)) "
+            + "order by p.createdAt desc, p.id")
+    List<Payment> search(@Param("merchant") String merchant, @Param("status") String status, Pageable page);
 
     long countByStatusIn(Collection<PaymentStatus> statuses);
 

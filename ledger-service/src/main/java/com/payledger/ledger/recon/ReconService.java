@@ -120,6 +120,10 @@ public class ReconService {
         metrics.counter("recon.mismatches", "outcome", "DUPLICATE_IN_BANK").increment(run.duplicateInBank());
     }
 
+    public List<Run> latest() {
+        return runs.latest(50);
+    }
+
     public Run get(UUID id) {
         return runs.find(id).orElseThrow(() -> new ReconRunNotFoundException(id));
     }

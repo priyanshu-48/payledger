@@ -79,3 +79,15 @@ Taken from `ops/observability/dashboard-demo.sh`: payments with bank faults, Kaf
 | `recon_mismatches_total{outcome}`, `recon_runs_total{status}` | reconciliation results |
 
 Consumer log lines carry the trace id of the request that caused the event, so one id finds the HTTP call, the outbox publish, the ledger posting and the notification. Decisions: [ADR 0020](docs/decisions/0020-observability.md).
+
+## Admin console (admin-ui, :8085)
+React + TypeScript + Vite, served by nginx, which also forwards `/api/<service>/` to the services so the browser stays on one origin ([ADR 0021](docs/decisions/0021-admin-ui.md)). Sign in with a user from auth-service (the bootstrap `admin` sees everything; a MERCHANT sees only its own payments).
+
+![Payment detail with status history](docs/img/admin-ui.png)
+
+- **Accounts:** balances, owner and type filters, freeze and unfreeze.
+- **Payments:** status filter, detail with the full status history, capture and refund where the state allows.
+- **Reconciliation:** run list with counts, mismatches of a run, upload of a bank settlement file.
+- **Operations:** dead-letter replay.
+
+Development: `cd admin-ui && npm ci && npm run dev` (proxies to services on localhost). Smoke test: `ops/ui/smoke.sh` starts the stack in its own compose project and runs the Playwright test against it using the installed Microsoft Edge.

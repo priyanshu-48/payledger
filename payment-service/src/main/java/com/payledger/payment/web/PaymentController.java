@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -58,6 +59,15 @@ public class PaymentController {
                 : created.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).location(URI.create("/payments/" + p.getId()))
                 .body(PaymentResponse.of(p));
+    }
+
+    @GetMapping("/payments")
+    public List<PaymentResponse> list(@RequestParam(required = false) PaymentStatus status,
+                                      @RequestParam(defaultValue = "0") int page,
+                                      @RequestParam(defaultValue = "50") int size,
+                                      Authentication authentication) {
+        return service.list(Caller.from(authentication), status, Math.max(page, 0), Math.min(Math.max(size, 1), 200))
+                .stream().map(PaymentResponse::of).toList();
     }
 
     @GetMapping("/payments/{id}")

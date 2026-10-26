@@ -39,6 +39,7 @@ class LedgerSecurityConfig {
                         .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .requestMatchers("/admin/**", "/recon/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/accounts/*/freeze", "/accounts/*/unfreeze").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/accounts").hasRole("ADMIN")
                         .requestMatchers("/accounts/**", "/transfers").authenticated()
                         .anyRequest().denyAll())
                 .addFilterAfter(limits, BearerTokenAuthenticationFilter.class)

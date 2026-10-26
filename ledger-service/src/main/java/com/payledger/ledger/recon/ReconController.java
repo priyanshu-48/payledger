@@ -73,6 +73,11 @@ class ReconController {
         return ResponseEntity.status(status).body(RunResponse.of(submitted.run()));
     }
 
+    @GetMapping("/recon/runs")
+    List<RunResponse> runs() {
+        return service.latest().stream().map(RunResponse::of).toList();
+    }
+
     @GetMapping("/recon/runs/{id}")
     RunResponse run(@PathVariable UUID id) {
         return RunResponse.of(service.get(id));

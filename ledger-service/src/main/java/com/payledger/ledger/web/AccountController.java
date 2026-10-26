@@ -3,12 +3,15 @@ package com.payledger.ledger.web;
 import com.payledger.common.Money;
 import com.payledger.ledger.domain.Account;
 import com.payledger.ledger.domain.AccountStatus;
+import com.payledger.ledger.domain.AccountType;
 import com.payledger.ledger.service.AccountService;
+import com.payledger.ledger.web.ApiDtos.AccountListItem;
 import com.payledger.ledger.web.ApiDtos.AccountResponse;
 import com.payledger.ledger.web.ApiDtos.BalanceResponse;
 import com.payledger.ledger.web.ApiDtos.CreateAccountRequest;
 import com.payledger.security.Caller;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,6 +38,18 @@ public class AccountController {
     public AccountResponse create(@Valid @RequestBody CreateAccountRequest request, Authentication authentication) {
         Account a = accounts.create(Caller.from(authentication), request.ownerId(), request.type(), request.currency());
         return response(a);
+    }
+
+    /** ADMIN only (URL rule and service check). Newest first; page size is capped. */
+    @GetMapping("/accounts")
+    public List<AccountListItem> list(@RequestParam(required = false) String ownerId,
+                                      @RequestParam(required = false) AccountType type,
+                                      @RequestParam(defaultValue = "0") int page,
+                                      @RequestParam(defaultValue = "50") int size,
+                                      Authentication authentication) {
+        return accounts.list(Caller.from(authentication), ownerId, type, Math.max(page, 0), Math.min(Math.max(size, 1), 200))
+                .stream().map(a -> new AccountListItem(a.id(), a.ownerId(), a.type(), a.currency(), a.status(),
+                        a.balance().toMajor(), a.createdAt())).toList();
     }
 
     @GetMapping("/accounts/{id}/balance")

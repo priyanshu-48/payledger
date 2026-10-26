@@ -113,6 +113,12 @@ services:
       <<: *hc
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
 
+  # Admin console (ADR 0021): static files plus a same-origin proxy to the three services.
+  admin-ui:
+    build: ./admin-ui
+    depends_on: [auth-service, payment-service, ledger-service]
+    ports: ["8085:80"]
+
   # Distributed traces (ADR 0016). In-memory storage: traces vanish when it restarts.
   jaeger:
     image: jaegertracing/all-in-one:1.62.0

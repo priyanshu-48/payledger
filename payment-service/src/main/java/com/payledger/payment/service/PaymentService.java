@@ -15,6 +15,7 @@ import com.payledger.security.Caller;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -82,6 +83,12 @@ public class PaymentService {
                     null, "bank did not answer (" + outcome.reason() + ")");
         };
         return new Created(result, true);
+    }
+
+    /** ADMIN sees every payment, a MERCHANT only its own; anybody else is refused. Newest first. */
+    public List<Payment> list(Caller caller, PaymentStatus status, int page, int size) {
+        String merchant = access.merchantScope(caller);
+        return payments.search(merchant, status == null ? null : status.name(), PageRequest.of(page, size));
     }
 
     public Payment get(Caller caller, UUID id) {

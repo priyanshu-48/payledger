@@ -30,6 +30,17 @@ public class PaymentAccess {
         }
     }
 
+    /** The merchant id a listing is limited to: null for an ADMIN (everything), the subject for a MERCHANT. */
+    public String merchantScope(Caller caller) {
+        if (caller.isAdmin()) {
+            return null;
+        }
+        if (!caller.hasRole(Caller.MERCHANT)) {
+            throw new AccessDeniedException(DENIED);
+        }
+        return caller.subject();
+    }
+
     /** What a non-admin hears for a payment that does not exist: the same refusal as for someone else's. */
     public AccessDeniedException denied() {
         return new AccessDeniedException(DENIED);

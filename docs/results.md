@@ -102,3 +102,12 @@ Load scripts raise the per-client limits for their own run only (`TRANSFER_RATE_
 | Consumer lag | consumer stopped, 7 messages published: lag 7; restarted: 0 (test, real Kafka) |
 | Trace id in consumer logs | log line of the listener carries the trace id of the publishing span (test) |
 | Real stack (`ops/observability/dashboard-demo.sh`) | PASS: all 14 dashboard queries return data; outbox lag peaked near 40 s with Kafka stopped (235 unpublished rows); recon found 3/2/4/3 planted mismatches; 429s from the login burst; screenshot `docs/img/dashboard.png` |
+
+## M9: admin console
+
+| Check | Result |
+|---|---|
+| Full `./mvnw verify` | 151 tests, 0 failures (common 5, security 8, auth-service 9, ledger 84, payment 40, notification 5) |
+| `npm run build` (strict TypeScript + Vite) | clean; bundle 179 kB (58 kB gzip) |
+| New endpoints | account list (admin only, filters, size cap, paging without overlap), payment list (admin all, merchant own, status filter, user 403), recon run list (admin only, newest first) |
+| Playwright smoke test against the real stack (`ops/ui/smoke.sh`) | 3 of 3 passed in about 7 s: wrong password refused; admin freezes/unfreezes an account, reads a 3-step payment history, captures a payment from the UI, uploads a reconciliation file and sees the mismatch, runs dead-letter replay; merchant sees only its own 2 payments and no admin menus; a reload signs out |
