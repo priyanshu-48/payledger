@@ -7,6 +7,15 @@ spring:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+  batch:
+    job:
+      enabled: false          # jobs run only when the recon API launches them
+    jdbc:
+      initialize-schema: never   # Flyway creates the Spring Batch tables (V5)
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
   jpa:
     open-in-view: false
     properties:
@@ -48,6 +57,9 @@ logging:
   pattern:
     correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
 ledger:
+  recon:
+    chunk-size: ${LEDGER_RECON_CHUNK_SIZE:500}
+    storage-dir: ${LEDGER_RECON_DIR:${java.io.tmpdir}/payledger-recon}
   consumer:
     enabled: ${LEDGER_CONSUMER_ENABLED:true}
     concurrency: 3

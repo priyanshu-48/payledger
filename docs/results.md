@@ -49,3 +49,22 @@ SPEC section 11 row: events in flight when the consumer was killed -> lost / dup
 
 One funded wallet, one merchant, one payment created and captured through the real stack (Postgres, Kafka, Jaeger, three services in containers). Jaeger holds a single trace with 7 spans across payment-service, ledger-service and notification-service; the `[MOCK EMAIL]` log lines of the notification service carry the same trace id as the request that started it. Four mock emails were stored (2 for the funding transfer, 2 for the capture).
 
+## M6: bank reconciliation with planted errors
+
+**Automated (`ReconciliationTest`):** 200 captures in the period, 20 older captures (17 listed in the bank file, 3 not) and one plain transfer in the ledger. Planted in the bank file: 5 dropped rows, 5 amount changes plus 2 currency changes, 3 rows listed twice, 4 invented references.
+
+| Outcome | Planted | Found |
+|---|---|---|
+| MISSING_IN_BANK | 5 | 5 |
+| AMOUNT_MISMATCH | 7 | 7 |
+| DUPLICATE_IN_BANK | 3 | 3 |
+| MISSING_IN_LEDGER | 4 | 4 |
+| MATCHED | 202 | 202 |
+| False positives (the 3 unlisted older captures, the plain transfer) | 0 | 0 |
+
+**Restart (`ReconRestartTest`):** writer fails on the 4th chunk of 10 (30 rows committed); the same upload resumes the failed run and ends with exactly 100 staged rows, 100 items, 1 run, 1 job instance, 2 executions.
+
+**Real stack (`ops/recon/run-demo.sh 40`):** 40 payments created and captured through payment-service, Kafka and the ledger consumer; a bank file generated from the ledger with 3 dropped, 3 altered, 2 duplicated rows and 3 invented references. Result: 11 planted, 11 found correctly, 0 missed, 0 false positives; the second upload of the same file returned HTTP 200 with the same run id and no new items (43 -> 43).
+
+SPEC section 11 row: Recon rows / planted mismatches found -> 11 planted in a 40-capture demo (and 19 in the 200-capture test): all found.
+

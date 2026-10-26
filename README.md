@@ -43,3 +43,11 @@ Prove it (own compose project, fresh volumes):
 ops/e2e/trace-check.sh
 ```
 After upgrading from M4: Postgres only creates its databases on a fresh volume, so run `docker compose down -v` once to get the `notifications` database, and add `NOTIFICATIONS_DB_PASSWORD` to your `.env` (see `.env.example`).
+
+## Bank reconciliation
+`POST /recon/runs` (multipart `file` plus `periodStart` and `periodEnd`) compares the bank's settlement CSV (`external_ref,amount_minor,currency,settled_at`) with the ledger's `PAYMENT_CAPTURE` entries for that period and stores one outcome per reference: `MATCHED`, `MISSING_IN_LEDGER`, `MISSING_IN_BANK`, `AMOUNT_MISMATCH` or `DUPLICATE_IN_BANK`. Read it back with `GET /recon/runs/{id}` and `GET /recon/runs/{id}/items?outcome=...` (mismatches by default). Submitting the same file for the same period again returns the same run; a run that failed part-way is resumed, not repeated. Design: `docs/decisions/0017-bank-reconciliation.md`.
+
+Try it end to end (plants errors in a generated bank file and checks every one is found; own compose project):
+```bash
+ops/recon/run-demo.sh 40
+```
