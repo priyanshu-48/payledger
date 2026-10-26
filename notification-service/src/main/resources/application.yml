@@ -3,7 +3,42 @@ server:
 spring:
   application:
     name: notification-service
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:   # only used to write dead letters
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      ack-mode: record
+      observation-enabled: true
+notification:
+  consumer:
+    enabled: ${NOTIFICATION_CONSUMER_ENABLED:true}
+    concurrency: 3
+    retry:
+      initial: ${NOTIFICATION_CONSUMER_RETRY_INITIAL:PT0.5S}
+      max-retries: 3
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
 management:
+  tracing:
+    sampling:
+      probability: 1.0   # demo scale: trace everything (ADR 0016)
+  otlp:
+    tracing:
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318/v1/traces}
   endpoints:
     web:
       exposure:

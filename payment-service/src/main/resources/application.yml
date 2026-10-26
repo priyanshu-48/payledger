@@ -13,6 +13,8 @@ spring:
       ddl-auto: validate
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    template:
+      observation-enabled: true
     producer:
       acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -36,6 +38,7 @@ payledger:
     stall: ${MOCK_BANK_STALL:PT5S}
     seed: ${MOCK_BANK_SEED:0}
   outbox:
+    topic: payments.events
     enabled: ${OUTBOX_ENABLED:true}
     interval: ${OUTBOX_INTERVAL:PT0.2S}
     batch-size: 100
@@ -44,7 +47,16 @@ payledger:
   status-check:
     grace: ${STATUS_CHECK_GRACE:PT15S}
     interval: ${STATUS_CHECK_INTERVAL:PT30S}
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
 management:
+  tracing:
+    sampling:
+      probability: 1.0   # demo scale: trace everything (ADR 0016)
+  otlp:
+    tracing:
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318/v1/traces}
   endpoints:
     web:
       exposure:

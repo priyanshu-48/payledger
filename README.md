@@ -34,3 +34,12 @@ Prove it yourself (kills the ledger mid-stream and checks 0 lost, 0 duplicated; 
 ops/chaos/kill-ledger.sh 300
 ```
 Ledger payments need a MERCHANT account whose `ownerId` equals the payment's `merchantId`.
+
+## Notifications and traces
+Every journal entry the ledger posts also queues a `ledger.entry.posted` event (ledger outbox); notification-service consumes it and stores two mock emails (`[MOCK EMAIL]` in its log, rows in the `notifications` database). All three services export traces to Jaeger (http://localhost:16686 when the stack is up). The trace id travels through the outbox rows and Kafka headers, so one payment capture is a single trace across payment-service, ledger-service and notification-service.
+
+Prove it (own compose project, fresh volumes):
+```bash
+ops/e2e/trace-check.sh
+```
+After upgrading from M4: Postgres only creates its databases on a fresh volume, so run `docker compose down -v` once to get the `notifications` database, and add `NOTIFICATIONS_DB_PASSWORD` to your `.env` (see `.env.example`).

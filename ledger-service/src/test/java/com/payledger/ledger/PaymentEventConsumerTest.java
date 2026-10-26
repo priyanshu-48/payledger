@@ -77,6 +77,20 @@ class PaymentEventConsumerTest extends AbstractConsumerTest {
     }
 
     @Test
+    void aConsumedCaptureAlsoQueuesALedgerEventForNotifications() throws Exception {
+        Account payer = fundedWallet(100_000);
+        UUID paymentId = UUID.randomUUID();
+        long queuedBefore = count("SELECT count(*) FROM outbox");
+
+        publish(event(PaymentEventMessage.CAPTURED, paymentId, "merchant-x", payer.getId(), 7_000));
+
+        await().atMost(WAIT).until(() -> entries("payment-capture:" + paymentId) == 1);
+        assertThat(count("SELECT count(*) FROM outbox")).isEqualTo(queuedBefore + 1);
+        assertThat(jdbc.queryForObject("SELECT payload->>'entryType' FROM outbox ORDER BY seq DESC LIMIT 1", String.class))
+                .isEqualTo("PAYMENT_CAPTURE");
+    }
+
+    @Test
     void theSameEventDeliveredManyTimesPostsOnce() throws Exception {
         Account payer = fundedWallet(100_000);
         UUID paymentId = UUID.randomUUID();

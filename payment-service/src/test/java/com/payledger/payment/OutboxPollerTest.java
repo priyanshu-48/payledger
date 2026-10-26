@@ -3,8 +3,10 @@ package com.payledger.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.payledger.common.PaymentEventMessage;
-import com.payledger.payment.outbox.OutboxPoller;
-import com.payledger.payment.outbox.OutboxStore;
+import com.payledger.outbox.OutboxPoller;
+import com.payledger.outbox.OutboxStore;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,6 +42,8 @@ class OutboxPollerTest extends AbstractKafkaTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired OutboxStore store;
     @Autowired KafkaTemplate<String, String> kafka;
+    @Autowired Tracer tracer;
+    @Autowired Propagator propagator;
 
     @BeforeEach
     void clean() {
@@ -47,7 +51,7 @@ class OutboxPollerTest extends AbstractKafkaTest {
     }
 
     private OutboxPoller poller(OutboxStore s, KafkaTemplate<String, String> k, int batch, Duration lease) {
-        return new OutboxPoller(s, k, batch, lease, Duration.ofSeconds(5));
+        return new OutboxPoller(s, k, PaymentEventMessage.TOPIC, batch, lease, Duration.ofSeconds(5), tracer, propagator);
     }
 
     private UUID insertRow(UUID aggregate, int n) {
@@ -168,7 +172,7 @@ class OutboxPollerTest extends AbstractKafkaTest {
                 ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 500);
         KafkaTemplate<String, String> unreachable = new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(dead));
 
-        int published = new OutboxPoller(store, unreachable, 100, Duration.ofSeconds(1), Duration.ofSeconds(3)).runOnce();
+        int published = new OutboxPoller(store, unreachable, PaymentEventMessage.TOPIC, 100, Duration.ofSeconds(1), Duration.ofSeconds(3), tracer, propagator).runOnce();
 
         assertThat(published).isZero();
         assertThat(store.unpublishedCount()).as("every row is still pending").isEqualTo(20);

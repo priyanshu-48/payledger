@@ -48,7 +48,7 @@ public class OptimisticLedgerService {
         // Funds are judged on the snapshot just read; a concurrent change makes the commit fail and retry.
         TransferRules.checkAccounts(cmd, fromAccount, toAccount, fromBalance);
 
-        return recorder.record(cmd, fromBalance, toBalance);
+        return recorder.record(cmd, fromAccount, toAccount, fromBalance, toBalance);
     }
 
     private AccountBalance read(UUID accountId) {

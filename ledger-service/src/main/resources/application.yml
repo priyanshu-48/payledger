@@ -33,6 +33,20 @@ spring:
         delivery.timeout.ms: 15000
     listener:
       ack-mode: record
+      observation-enabled: true
+    template:
+      observation-enabled: true
+payledger:
+  outbox:
+    topic: ledger.events
+    enabled: ${OUTBOX_ENABLED:true}
+    interval: ${OUTBOX_INTERVAL:PT0.2S}
+    batch-size: 100
+    lease: ${OUTBOX_LEASE:PT10S}
+    send-timeout: PT10S
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
 ledger:
   consumer:
     enabled: ${LEDGER_CONSUMER_ENABLED:true}
@@ -42,6 +56,12 @@ ledger:
       max-retries: 3
   locking-strategy: ${LEDGER_LOCKING_STRATEGY:PESSIMISTIC}   # PESSIMISTIC | OPTIMISTIC (ADR 0009)
 management:
+  tracing:
+    sampling:
+      probability: 1.0   # demo scale: trace everything (ADR 0016)
+  otlp:
+    tracing:
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318/v1/traces}
   endpoints:
     web:
       exposure:

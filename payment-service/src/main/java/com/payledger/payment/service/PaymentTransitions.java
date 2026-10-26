@@ -3,8 +3,7 @@ package com.payledger.payment.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.payledger.common.PaymentEventMessage;
-import com.payledger.payment.domain.OutboxEvent;
-import com.payledger.payment.domain.OutboxEventRepository;
+import com.payledger.outbox.OutboxWriter;
 import com.payledger.payment.domain.Payment;
 import com.payledger.payment.domain.PaymentEvent;
 import com.payledger.payment.domain.PaymentEventRepository;
@@ -27,11 +26,11 @@ public class PaymentTransitions {
 
     private final PaymentRepository payments;
     private final PaymentEventRepository events;
-    private final OutboxEventRepository outbox;
+    private final OutboxWriter outbox;
     private final ObjectMapper json;
 
     public PaymentTransitions(PaymentRepository payments, PaymentEventRepository events,
-                              OutboxEventRepository outbox, ObjectMapper json) {
+                              OutboxWriter outbox, ObjectMapper json) {
         this.payments = payments;
         this.events = events;
         this.outbox = outbox;
@@ -75,7 +74,7 @@ public class PaymentTransitions {
                 payment.getId(), payment.getMerchantId(), payment.getPayerAccountId(), payment.getAmountMinor(),
                 payment.getCurrency(), from == null ? null : from.name(), to.name(), Instant.now());
         try {
-            outbox.save(new OutboxEvent(eventId, payment.getId(), message.type(), json.writeValueAsString(message)));
+            outbox.write(eventId, payment.getId(), message.type(), json.writeValueAsString(message));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("cannot serialise " + message.type(), e);
         }

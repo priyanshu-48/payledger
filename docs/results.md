@@ -45,3 +45,7 @@ JVM-level companion (`ConsumerRecoveryTest`): 300 events, consumer stopped after
 
 SPEC section 11 row: events in flight when the consumer was killed -> lost / duplicated = 471 -> 0 / 0.
 
+## M5: one trace across three services (`ops/e2e/trace-check.sh`)
+
+One funded wallet, one merchant, one payment created and captured through the real stack (Postgres, Kafka, Jaeger, three services in containers). Jaeger holds a single trace with 7 spans across payment-service, ledger-service and notification-service; the `[MOCK EMAIL]` log lines of the notification service carry the same trace id as the request that started it. Four mock emails were stored (2 for the funding transfer, 2 for the capture).
+

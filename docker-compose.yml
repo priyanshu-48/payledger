@@ -7,6 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env}
       LEDGER_DB_PASSWORD: ${LEDGER_DB_PASSWORD:?}
       PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:?}
+      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?}
     volumes:
       - ./ops/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
       - pgdata:/var/lib/postgresql/data
@@ -45,6 +46,7 @@ services:
       DB_PASSWORD: ${LEDGER_DB_PASSWORD}
       KAFKA_BOOTSTRAP: kafka:9092
       LEDGER_LOCKING_STRATEGY: ${LEDGER_LOCKING_STRATEGY:-PESSIMISTIC}
+      OTLP_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: {postgres: {condition: service_healthy}, kafka: {condition: service_healthy}}
     ports: ["8082:8082"]
     healthcheck: &hc
@@ -68,6 +70,7 @@ services:
       MOCK_BANK_LOST_RESPONSE_RATE: ${MOCK_BANK_LOST_RESPONSE_RATE:-0.01}
       STATUS_CHECK_GRACE: ${STATUS_CHECK_GRACE:-PT15S}
       STATUS_CHECK_INTERVAL: ${STATUS_CHECK_INTERVAL:-PT30S}
+      OTLP_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: {postgres: {condition: service_healthy}, kafka: {condition: service_healthy}}
     ports: ["8081:8081"]
     healthcheck:
@@ -77,12 +80,23 @@ services:
   notification-service:
     build: {context: ., args: {MODULE: notification-service}}
     environment:
+      DB_USER: notifications
+      DB_URL: jdbc:postgresql://postgres:5432/notifications
+      DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD}
       KAFKA_BOOTSTRAP: kafka:9092
-    depends_on: {kafka: {condition: service_healthy}}
+      OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+    depends_on: {postgres: {condition: service_healthy}, kafka: {condition: service_healthy}}
     ports: ["8083:8083"]
     healthcheck:
       <<: *hc
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
+
+  # Distributed traces (ADR 0016). In-memory storage: traces vanish when it restarts.
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports: ["16686:16686", "4318:4318"]
 
   prometheus:
     image: prom/prometheus:v2.55.1

@@ -23,7 +23,7 @@ abstract class ApiTestSupport extends AbstractPostgresTest {
 
     @BeforeEach
     void cleanLedger() {
-        jdbc.execute("TRUNCATE postings, journal_entries, account_balances, accounts CASCADE");
+        jdbc.execute("TRUNCATE postings, journal_entries, account_balances, accounts, outbox CASCADE");
     }
 
     UUID createAccount(String type, String currency) {

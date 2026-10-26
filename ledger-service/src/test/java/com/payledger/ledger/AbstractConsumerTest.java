@@ -38,7 +38,7 @@ abstract class AbstractConsumerTest extends AbstractKafkaTest {
 
     @BeforeEach
     void freshLedger() {
-        jdbc.execute("TRUNCATE postings, journal_entries, account_balances, accounts, processed_events CASCADE");
+        jdbc.execute("TRUNCATE postings, journal_entries, account_balances, accounts, processed_events, outbox CASCADE");
         settlement = ledger.createAccount("settlement", AccountType.SETTLEMENT, "INR");
         merchant = ledger.createAccount("merchant-x", AccountType.MERCHANT, "INR");
     }

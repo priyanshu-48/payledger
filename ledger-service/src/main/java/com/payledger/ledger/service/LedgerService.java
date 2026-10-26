@@ -78,7 +78,7 @@ public class LedgerService {
         Account toAccount = accounts.findById(cmd.to()).orElseThrow(() -> new AccountNotFoundException(cmd.to()));
         TransferRules.checkAccounts(cmd, fromAccount, toAccount, fromBalance);
 
-        return recorder.record(cmd, fromBalance, toBalance);
+        return recorder.record(cmd, fromAccount, toAccount, fromBalance, toBalance);
     }
 
     /** Previous result for this key, if any; throws if the key was used for a different transfer. */
