@@ -120,3 +120,33 @@ Load scripts raise the per-client limits for their own run only (`TRANSFER_RATE_
 | Stage times (average) | Backend 9 min 18 s (14 min on a cold build), Admin UI 31 s, Stack smoke 2 min 54 s |
 | Failure path | A deliberately failing test in `common` gave a red build in 90 s, 1 failed / 5 passed in the JUnit report, stack stage not started |
 | What the first runs found | Three failed builds before the first green: workspace path and local checkout settings (configuration), then a race in my smoke test (balance read while a capture was still being posted), fixed by asserting on an untouched wallet |
+
+## M10: load test (Gatling, `ops/load/run.sh`)
+
+**How it is measured.** Gatling drives the real stack (all four services, Postgres, Kafka, Prometheus, Jaeger) in its own compose project. One run per request rate, 30 seconds each, at a constant arrival rate (open workload), after a short warm-up that is not counted. Every step starts from a rested system (all events published and posted), and a ladder stops at its first step that is over the limit. A rate is **sustained** when it has under 1% failed requests and a p95 under 500 ms. Rate limits are lifted for the run, the stand-in bank answers in 2-20 ms without faults, and the 200 test wallets are picked at random (no hot account). All of it runs on one laptop whose Docker VM shares CPU between the load generator, the database, Kafka and every service, so the numbers describe that machine, not a cloud VM and not a tuned deployment.
+
+**Final run** (warm-up, drain between steps):
+
+| Workload | Rate | Requests | Failed | p50 | p95 | p99 | Verdict |
+|---|---|---|---|---|---|---|---|
+| `POST /transfers` | 200/s | 6,000 | 0% | 10 ms | 17 ms | 28 ms | sustained |
+| | 400/s | 12,000 | 0% | 10 ms | 18 ms | 94 ms | sustained |
+| | 600/s | 18,000 | 0% | 12 ms | 44 ms | 234 ms | **sustained** |
+| | 800/s | 24,000 | 0% | 17 ms | 642 ms | 786 ms | over the limit |
+| `POST /payments` + capture | 120/s (240 requests/s) | 7,200 | 0% | 22 ms | 73 ms | 428 ms | **sustained** |
+| | 240/s (480 requests/s) | 14,400 | 19% | 28 ms | 16,256 ms | 19,890 ms | over the limit |
+
+**Correctness under load** (11,250 payments created in that run, 9,850 captured, 33,679 events): everything published and processed, 9,850 capture entries for 9,850 distinct captures, **0 lost, 0 duplicated**, sum of all balances 0. Earlier runs of the same script created up to 39,152 payments with the same result.
+
+**What the earlier runs taught** (kept here because they changed the method):
+
+| Run | What happened | Change made |
+|---|---|---|
+| 1 | Transfers failed from 300/s with "Address already in use" on the load generator | Each virtual user opened a new connection and exhausted this machine's local ports; I was measuring the test client. Users now share one connection pool, as a real client does. |
+| 2-3 | Transfers: 600/s sustained, 800/s not. Payments: 240/s sustained once, then 360/s collapsed (about 99% failed, 60 s timeouts) | Steps ran back to back, so a step started while the previous one's events were still being posted. The script now waits for everything to drain before each step. |
+| 3 | The first payment step was slow (p95 870 ms) after the transfer ladder | JVM and connection warm-up; a warm-up phase was added. |
+| 5 (final) | Payments: 120/s sustained, 240/s failed (19%) although 240/s had passed cleanly (p95 61 ms) in two earlier runs | Not explained by one cause; the payment path is at its edge between 120 and 360 per second on this machine (the payment service used about 4 cores and Postgres about 3 while a 360/s step ran). I report the lower, repeatable figure. |
+
+**Reading the numbers.** The transfer ceiling (600-800/s) is a single machine saturating (CPU shared by Postgres, the service and the load generator), not a design limit: going further would mean more machines and partitioning accounts across ledger instances, which is not built. The payment path does more work per request (a bank call, two state transitions with event rows and two outbox rows) and, below it, every capture credits the same merchant account, whose balance row is serialised by design (ADR 0007, and the 75 transfers/s hot-account figure from M2).
+
+**Coverage** (JaCoCo, all main code of all modules, `ops/ci/coverage.sh` after `./mvnw verify`): 92.8% of lines (1,389 of 1,496) and 82.2% of branches (296 of 360).

@@ -1,0 +1,70 @@
+# Production overlay (ADR 0023):
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
+# Only Caddy is reachable from outside (80 and 443). Every other port of docker-compose.yml is removed here, so the
+# database, Kafka, the services, their actuator endpoints and Prometheus exist only on the internal Docker network.
+name: payledger
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST in .env, for example 203-0-113-7.sslip.io}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    ports: ["80:80", "443:443"]
+    depends_on: [admin-ui, grafana]
+
+  postgres:
+    restart: unless-stopped
+    ports: !reset []
+  kafka:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx512m"
+  auth-service:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+  payment-service:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx512m"
+      # a public demo: quick bank, a few declines to show the failure path, nothing that hangs
+      MOCK_BANK_LATENCY_MIN_MS: "20"
+      MOCK_BANK_LATENCY_MAX_MS: "400"
+      MOCK_BANK_DECLINE_RATE: "0.03"
+      MOCK_BANK_TIMEOUT_RATE: "0"
+      MOCK_BANK_LOST_RESPONSE_RATE: "0"
+  ledger-service:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx512m"
+  notification-service:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+  admin-ui:
+    restart: unless-stopped
+    ports: !reset []
+  jaeger:
+    restart: unless-stopped
+    ports: !reset []
+  prometheus:
+    restart: unless-stopped
+    ports: !reset []
+  grafana:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      # served below /grafana/ on the same host (Caddyfile); anonymous visitors are Viewers (docker-compose.yml)
+      GF_SERVER_ROOT_URL: https://${PUBLIC_HOST}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+
+volumes:
+  caddy_data:

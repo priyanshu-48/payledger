@@ -27,4 +27,20 @@
     <java.version>21</java.version>
     <maven.compiler.release>21</maven.compiler.release>
   </properties>
+
+  <build>
+    <plugins>
+      <!-- records which lines the tests run; ops/ci/coverage.sh turns the exec files into one percentage -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.12</version>
+        <executions>
+          <execution>
+            <goals><goal>prepare-agent</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

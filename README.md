@@ -1,14 +1,36 @@
 # PayLedger
 
-Payments and double-entry ledger platform (Java 21, Spring Boot, PostgreSQL, Kafka).
+A payments platform with a double-entry ledger: payments are authorized and captured against a (stand-in) bank, and every capture becomes a balanced, append-only journal entry in a separate ledger service. Built to show what stays correct when things fail: duplicate requests, a bank that times out, a consumer killed mid-stream, concurrent transfers on one account.
+
+**Stack:** Java 21, Spring Boot 3, PostgreSQL, Kafka, Spring Batch, Spring Security (JWT), React + TypeScript, Docker Compose, Prometheus, Grafana, Jaeger, Testcontainers, Gatling, Jenkins and GitHub Actions.
+
+**Where to look:** [architecture and diagrams](docs/architecture.md) · [23 decision records](docs/decisions/README.md) · [all measurements](docs/results.md) · [demo script](docs/demo-script.md)
+
+## What was measured
+
+| Claim | Result |
+|---|---|
+| Concurrent transfers, threads, balance drift | 27,000 transfers per strategy, 64 threads, **0 drift** |
+| Pessimistic vs optimistic locking on a hot account | 75 vs 32 transfers/s (and 32% of optimistic transfers abandoned) |
+| Generated scenarios checked against the ledger invariants (jqwik) | 10,000, **0 violations** |
+| 50 identical parallel payment requests | **1** payment, 1 bank call |
+| 1,000 payments against a flaky bank (5% declines, 3% timeouts, 1% lost answers) | about 35 left unknown, all resolved by asking the bank, **0 stuck** |
+| Ledger consumer killed with 471 events still to process | **0 lost, 0 duplicated** postings (300 payments, 900 events) |
+| Bank reconciliation with planted errors | 11 of 11 found in a 40-capture demo (19 of 19 in the 200-capture test), 0 false positives |
+| Load, `POST /transfers` (one laptop, everything on it) | **600 requests/s** sustained, p95 44 ms, p99 234 ms; degrades at 800/s |
+| Load, payment create + capture (same machine) | **120 payments/s** (240 requests/s) sustained, p95 73 ms; the edge is between 120 and 360/s |
+| Correctness under load | 11,250 payments, 33,679 events: **0 lost, 0 duplicated**, balances sum to 0 |
+| Tests / coverage | **152 tests**, 92.8% of lines and 82.2% of branches (JaCoCo) |
+
+Load numbers describe one laptop whose Docker VM runs the load generator, database, Kafka and all services; how they were measured, what the failed attempts taught, and the caveats are in [docs/results.md](docs/results.md).
 
 ## Run
 ```bash
-cp .env.example .env   # set passwords
+cp .env.example .env   # fill in every value, e.g. openssl rand -hex 16
 docker compose up -d --build
 docker compose ps      # all services healthy
 ```
-Health: `:8081` payment, `:8082` ledger, `:8083` notification (`/actuator/health`). Prometheus `:9090`, Grafana `:3000`.
+Health: `:8081` payment, `:8082` ledger, `:8083` notification, `:8084` auth (`/actuator/health`). Admin console `:8085`, Prometheus `:9090`, Grafana `:3000`. If you ran an older version, run `docker compose down -v` once: the database roles for auth and notifications are only created on a fresh volume.
 
 ## Test
 ```bash
@@ -102,3 +124,13 @@ docker compose -f jenkins/docker-compose.yml --env-file .env up -d --build   # h
 ```
 
 Stages: throwaway `.env` with random secrets, then Maven `verify` (all backend tests with Testcontainers) in parallel with the admin-ui type-check and build, then the real-stack Playwright smoke test (`ops/ui/smoke.sh`). Jenkins reaches Docker through the host's socket, polls the repository every five minutes, and is configured entirely by `jenkins/jenkins.yaml` (sign in as `admin` with `JENKINS_ADMIN_PASSWORD` from `.env`; anyone on localhost can view).
+
+## Load test
+`ops/load/run.sh` starts the stack in its own compose project, drives transfers and payments with Gatling at rising rates (one run per rate, from a rested system, stopping at the first rate that is over the limit), then checks that nothing was lost or duplicated and that all balances sum to zero. Quick run: `RATES_TRANSFERS=100,200 RATES_PAYMENTS=60,120 STEP_SECONDS=10 ops/load/run.sh`. Results and method: [docs/results.md](docs/results.md).
+
+![Dashboard during the load test](docs/img/load-dashboard.png)
+
+The dashboard over the final run: request rates climb through the ladders, latency rises at the end of each, and under overload the outbox lag reached about 1.7 minutes and consumer lag about 2,000 messages before everything drained (the reconciliation panels are empty because this run does not reconcile).
+
+## Deployment
+One VM with Docker Compose and Caddy (automatic HTTPS); only ports 80 and 443 are public. Kit, runbook and what is exposed: [deploy/README.md](deploy/README.md), [ADR 0023](docs/decisions/0023-deployment.md). Check a deployment from outside with `ops/deploy/smoke-remote.sh <url>`.

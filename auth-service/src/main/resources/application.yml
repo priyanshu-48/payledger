@@ -1,5 +1,8 @@
 server:
   port: 8084
+  # behind nginx and Caddy the client's address is in X-Forwarded-For; only proxies on private networks are believed,
+  # so the login rate limit counts real clients (ADR 0023)
+  forward-headers-strategy: native
 spring:
   application:
     name: auth-service

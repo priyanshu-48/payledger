@@ -5,7 +5,7 @@ AUTH=${AUTH:-http://localhost:8084}
 
 # auth_login USERNAME PASSWORD -> prints an access token
 auth_login() {
-  curl -sf -X POST "$AUTH/auth/token" -H 'Content-Type: application/json' \
+  curl -sf ${CURL_OPTS:-} -X POST "$AUTH/auth/token" -H 'Content-Type: application/json' \
     -d "{\"username\":\"$1\",\"password\":\"$2\"}" | sed 's/.*"accessToken":"\([^"]*\)".*/\1/'
 }
 
@@ -14,7 +14,7 @@ admin_token() { auth_login admin "$AUTH_ADMIN_PASSWORD"; }
 
 # create_user ADMIN_TOKEN USERNAME PASSWORD ROLE
 create_user() {
-  curl -sf -X POST "$AUTH/auth/users" -H "Authorization: Bearer $1" -H 'Content-Type: application/json' \
+  curl -sf ${CURL_OPTS:-} -X POST "$AUTH/auth/users" -H "Authorization: Bearer $1" -H 'Content-Type: application/json' \
     -d "{\"username\":\"$2\",\"password\":\"$3\",\"role\":\"$4\"}" >/dev/null
 }
 
