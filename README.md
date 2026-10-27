@@ -11,7 +11,7 @@ A payments platform with a double-entry ledger: payments are authorized and capt
 | Claim | Result |
 |---|---|
 | Concurrent transfers, threads, balance drift | 27,000 transfers per strategy, 64 threads, **0 drift** |
-| Pessimistic vs optimistic locking on a hot account | 75 vs 32 transfers/s (and 32% of optimistic transfers abandoned) |
+| Pessimistic vs optimistic locking on a hot account | 75 vs 32 transfers/s (and 33-40% of optimistic transfers abandoned: 2,000-2,411 of 6,000) |
 | Generated scenarios checked against the ledger invariants (jqwik) | 10,000, **0 violations** |
 | 50 identical parallel payment requests | **1** payment, 1 bank call |
 | 1,000 payments against a flaky bank (5% declines, 3% timeouts, 1% lost answers) | about 35 left unknown, all resolved by asking the bank, **0 stuck** |

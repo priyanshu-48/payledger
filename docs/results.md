@@ -25,7 +25,7 @@ Reproduce: `./mvnw -pl common,ledger-service verify -Dtest=ConcurrencyHarnessTes
 | Metric | Value |
 |---|---|
 | Concurrent transfers, threads, balance drift | 27,000 per strategy (3 runs each of both scenarios), 64 threads, 0 drift |
-| Pessimistic vs optimistic throughput (hot account) | 75 vs 32 transfers/s (and 32% of optimistic transfers abandoned) |
+| Pessimistic vs optimistic throughput (hot account) | 75 vs 32 transfers/s (and 33-40% of optimistic transfers abandoned: 2,000-2,411 of 6,000) |
 | jqwik generated scenarios, invariant violations | 10,000 / 0 |
 
 ## M4: kill the ledger consumer with events in flight (`ops/chaos/kill-ledger.sh 300`)
