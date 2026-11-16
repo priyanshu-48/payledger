@@ -4,7 +4,8 @@ on:
   pull_request:
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # not ubuntu-latest: on ubuntu-26.04 its Docker rejects the API version Testcontainers 1.21 speaks
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
