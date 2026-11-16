@@ -27,8 +27,8 @@ Java 21, Spring Boot 3.5, PostgreSQL 16, Apache Kafka, Spring Batch, Spring Secu
 ## Verified numbers (with source)
 | Fact | Value | Source |
 |---|---|---|
-| Automated tests | 152, 0 failures (common 5, security 8, auth 10, ledger 84, payment 40, notification 5) | `./mvnw verify` reports |
-| Code coverage | 92.8% of lines (1,389 of 1,496), 82.2% of branches (296 of 360), all modules, JaCoCo | `ops/ci/coverage.sh` |
+| Automated tests | 156, 0 failures (common 7, security 8, auth 10, ledger 86, payment 40, notification 5) | `./mvnw verify` reports |
+| Code coverage | 92.9% of lines (1,397 of 1,504), 82.3% of branches (298 of 362), all modules, JaCoCo | `ops/ci/coverage.sh` |
 | Concurrent transfer test | 27,000 transfers per locking strategy, 64 threads, 0 balance drift, 0 database deadlocks | `docs/results.md` M2 |
 | Locking comparison on a hot account (6,000 transfers into one wallet, 64 threads) | pessimistic 75 transfers/s vs optimistic 32 transfers/s; optimistic abandoned 2,000-2,411 of 6,000 (33-40%) after 20 conflicting attempts | `docs/results.md` M2 |
 | Property-based test (jqwik) | 10,000 generated scenarios, 0 invariant violations (1,000 per normal build) | `docs/journal.md` M1 |
@@ -61,4 +61,4 @@ Load numbers were measured on one laptop where the load generator, database, Kaf
 - Designed a double-entry ledger in Java and PostgreSQL where append-only journals and balanced entries are enforced by database triggers and constraints, and verified it with 27,000 concurrent transfers (64 threads) and 10,000 property-based scenarios with 0 balance drift.
 - Implemented the transactional outbox and an idempotent Kafka consumer; killing the consumer with 471 events in flight and restarting it produced 0 lost and 0 duplicated postings.
 - Load-tested with Gatling: the transfer API sustained 600 requests/s (p95 44 ms) on a laptop, with 0 lost or duplicated events and balances summing to zero after 11,250 payments.
-- Built 152 automated tests (92.8% line coverage) run in CI on both Jenkins and GitHub Actions, including Testcontainers integration tests and a Playwright end-to-end test against the full stack.
+- Built 156 automated tests (92.9% line coverage) run in CI on both Jenkins and GitHub Actions, including Testcontainers integration tests and a Playwright end-to-end test against the full stack.

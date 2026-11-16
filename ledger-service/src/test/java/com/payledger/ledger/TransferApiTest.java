@@ -107,6 +107,22 @@ class TransferApiTest extends ApiTestSupport {
     }
 
     @Test
+    void decimalPlacesFollowTheCurrency() {
+        UUID settlement = createAccount("SETTLEMENT", "JPY");
+        UUID wallet = createAccount("USER_WALLET", "JPY");
+
+        assertThat(transfer("yen-1", settlement, wallet, "500", "JPY").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(balance(wallet)).isEqualByComparingTo("500");
+        assertThat(transfer("yen-2", settlement, wallet, "0.5", "JPY").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        UUID dinarSettlement = createAccount("SETTLEMENT", "KWD");
+        UUID dinars = createAccount("USER_WALLET", "KWD");
+        assertThat(transfer("kwd-1", dinarSettlement, dinars, "1.234", "KWD").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(balance(dinars)).isEqualByComparingTo("1.234");
+        assertThat(balance(wallet)).isEqualByComparingTo("500");
+    }
+
+    @Test
     void unknownAndFrozenAccounts() {
         UUID settlement = createAccount("SETTLEMENT", "INR");
         UUID alice = fundedWallet(settlement, "500.00");

@@ -27,3 +27,4 @@ One short record per design choice that the spec did not make for me: context, d
 | [0021](0021-admin-ui.md) | Admin console: same origin through nginx, token in memory |
 | [0022](0022-jenkins.md) | Jenkins pipeline in Docker, configuration as code |
 | [0023](0023-deployment.md) | Public deployment on one VM with Compose and Caddy |
+| [0024](0024-currency-decimal-places.md) | Decimal places follow the currency (JPY 0, KWD 3), not a fixed 2 |

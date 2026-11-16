@@ -39,8 +39,8 @@ public class TransferController {
         Money amount;
         try {
             amount = Money.fromMajor(request.amount(), request.currency());
-        } catch (ArithmeticException e) {
-            throw new InvalidTransferException("amount must have at most 2 decimal places");
+        } catch (ArithmeticException | IllegalArgumentException e) {
+            throw new InvalidTransferException("amount has more decimal places than the currency allows, or the currency is unknown");
         }
         TransferResult result = transfers.transfer(Caller.from(authentication),
                 new TransferCommand(key, request.fromAccountId(), request.toAccountId(), amount));

@@ -49,8 +49,8 @@ public class PaymentController {
         Money amount;
         try {
             amount = Money.fromMajor(request.amount(), request.currency());
-        } catch (ArithmeticException e) {
-            throw new IllegalArgumentException("amount must have at most 2 decimal places");
+        } catch (ArithmeticException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("amount has more decimal places than the currency allows, or the currency is unknown");
         }
         Created created = service.create(Caller.from(authentication),
                 new CreatePayment(key, request.merchantId(), request.payerAccountId(), amount));

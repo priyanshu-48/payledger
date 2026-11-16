@@ -20,7 +20,7 @@ A payments platform with a double-entry ledger: payments are authorized and capt
 | Load, `POST /transfers` (one laptop, everything on it) | **600 requests/s** sustained, p95 44 ms, p99 234 ms; degrades at 800/s |
 | Load, payment create + capture (same machine) | **120 payments/s** (240 requests/s) sustained, p95 73 ms; the edge is between 120 and 360/s |
 | Correctness under load | 11,250 payments, 33,679 events: **0 lost, 0 duplicated**, balances sum to 0 |
-| Tests / coverage | **152 tests**, 92.8% of lines and 82.2% of branches (JaCoCo) |
+| Tests / coverage | **156 tests**, 92.9% of lines and 82.3% of branches (JaCoCo) |
 
 Load numbers describe one laptop whose Docker VM runs the load generator, database, Kafka and all services; how they were measured, what the failed attempts taught, and the caveats are in [docs/results.md](docs/results.md).
 

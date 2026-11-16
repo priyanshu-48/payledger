@@ -149,4 +149,4 @@ Load scripts raise the per-client limits for their own run only (`TRANSFER_RATE_
 
 **Reading the numbers.** The transfer ceiling (600-800/s) is a single machine saturating (CPU shared by Postgres, the service and the load generator), not a design limit: going further would mean more machines and partitioning accounts across ledger instances, which is not built. The payment path does more work per request (a bank call, two state transitions with event rows and two outbox rows) and, below it, every capture credits the same merchant account, whose balance row is serialised by design (ADR 0007, and the 75 transfers/s hot-account figure from M2).
 
-**Coverage** (JaCoCo, all main code of all modules, `ops/ci/coverage.sh` after `./mvnw verify`): 92.8% of lines (1,389 of 1,496) and 82.2% of branches (296 of 360).
+**Coverage** (JaCoCo, all main code of all modules, `ops/ci/coverage.sh` after `./mvnw verify`): 92.9% of lines (1,397 of 1,504) and 82.3% of branches (298 of 362).
